@@ -89,43 +89,38 @@ function create() {
     createOfficeBackground.call(this);
 
     // Create desk/ground
-    const desk = this.add.rectangle(450, 660, 900, 80, 0x8B6F47);
-    desk.setStrokeStyle(3, 0x5C4A2F);
+    const groundDesk = this.add.rectangle(450, 660, 900, 80, 0x8B6F47);
+    groundDesk.setStrokeStyle(3, 0x5C4A2F);
     
     // Desk surface line
     this.add.rectangle(450, 620, 900, 4, 0x5C4A2F);
 
-    // Create player (loan officer at desk)
+    // Create player (simplified loan officer)
     player = this.add.container(450, 580);
     
-    // Desk items
-    const deskTop = this.add.rectangle(0, 30, 120, 60, 0x9C8565);
-    deskTop.setStrokeStyle(2, 0x5C4A2F);
+    // Simple desk surface for player
+    const playerDesk = this.add.rectangle(0, 40, 80, 30, 0x8B6F47);
+    playerDesk.setStrokeStyle(2, 0x5C4A2F);
     
-    // Computer monitor
-    const monitor = this.add.rectangle(-25, 10, 35, 28, 0x2C3E50);
-    const screen = this.add.rectangle(-25, 8, 30, 20, 0x3498DB);
-    const monitorBase = this.add.rectangle(-25, 25, 15, 4, 0x2C3E50);
+    // Person - much simpler design
+    const body = this.add.rectangle(0, 10, 25, 40, 0x2E86AB); // Blue shirt/uniform
+    const head = this.add.circle(0, -15, 15, 0xF4D1AE); // Head
+    const tie = this.add.rectangle(0, 10, 6, 25, 0x8B0000); // Red tie for professional look
     
-    // Loan officer (simplified person)
-    const body = this.add.ellipse(15, 15, 30, 35, 0x34495E);
-    const head = this.add.circle(15, -5, 12, 0xF4D1AE);
-    const hair = this.add.ellipse(15, -12, 24, 16, 0x2C3E50);
+    // Arms holding a stamp
+    const leftArm = this.add.rectangle(-15, 5, 8, 20, 0xF4D1AE);
+    const rightArm = this.add.rectangle(15, 5, 8, 20, 0xF4D1AE);
     
-    // Coffee mug
-    const mug = this.add.rectangle(45, 20, 12, 15, 0xF5F5DC);
-    const mugHandle = this.add.arc(51, 20, 6, 90, 270, false, 0xF5F5DC);
-    mugHandle.setStrokeStyle(2, 0xF5F5DC);
+    // Large, obvious stamp tool
+    const stampTool = this.add.rectangle(0, -35, 30, 15, 0xC0392B);
+    const stampText = this.add.text(0, -35, 'STAMP', {
+        fontSize: '10px',
+        fontFamily: 'Arial',
+        color: '#fff',
+        fontStyle: 'bold'
+    }).setOrigin(0.5);
     
-    // Calculator
-    const calc = this.add.rectangle(-5, 25, 18, 22, 0x444444);
-    this.add.rectangle(-5, 23, 14, 10, 0x90EE90);
-    
-    // Stamp/Approval tool (the "cannon")
-    const stamp = this.add.rectangle(15, -25, 10, 30, 0xC0392B);
-    const stampHandle = this.add.rectangle(15, -35, 20, 8, 0x8B0000);
-    
-    player.add([deskTop, monitor, screen, monitorBase, body, head, hair, mug, mugHandle, calc, stamp, stampHandle]);
+    player.add([playerDesk, body, head, tie, leftArm, rightArm, stampTool, stampText]);
 
     // Input
     cursors = this.input.keyboard.createCursorKeys();
