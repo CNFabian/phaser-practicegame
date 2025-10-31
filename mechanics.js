@@ -36,7 +36,7 @@ function setupUI() {
     });
 
     // Instructions - updated for new gameplay
-    this.add.text(450, 16, 'READ CAREFULLY! BLAST BAD ADVICE • APPROVE GOOD PRACTICES', {
+    this.add.text(450, 16, 'READ CAREFULLY! DENY BAD ADVICE • APPROVE GOOD PRACTICES', {
         fontSize: '18px',
         fontFamily: 'Segoe UI',
         color: '#1a3a52',
@@ -172,11 +172,11 @@ function hitAdvice(stamp, advice) {
     const isBadAdvice = advice.getData('isBad');
     
     if (isBadAdvice) {
-        // Correctly rejected bad advice
+        // Correctly denied bad advice
         score += 10;
         
         // Success feedback
-        const successText = this.add.text(advice.x, advice.y, '+10\nREJECTED!', {
+        const successText = this.add.text(advice.x, advice.y, '+10\nDENIED!', {
             fontSize: '24px',
             fontFamily: 'Segoe UI',
             color: '#27AE60',
@@ -195,7 +195,7 @@ function hitAdvice(stamp, advice) {
         });
         
     } else {
-        // Wrong! Rejected good advice
+        // Wrong! Denied good advice
         lives--;
         livesText.setText(`❤️ Lives: ${lives}`);
         

@@ -49,15 +49,15 @@ function shoot() {
     
     lastFired = time;
     
-    // Create approval stamp projectile
+    // Create DENY stamp projectile
     const stamp = currentScene.add.container(player.x, player.y - 50);
     
-    // Stamp shape
-    const stampBody = currentScene.add.rectangle(0, 0, 35, 25, 0x2E86AB);
-    stampBody.setStrokeStyle(2, 0x1a3a52);
+    // Stamp shape - red for denial
+    const stampBody = currentScene.add.rectangle(0, 0, 40, 28, 0xC0392B);
+    stampBody.setStrokeStyle(2, 0x8B0000);
     
-    // "APPROVED" text on stamp
-    const stampText = currentScene.add.text(0, 0, 'OK', {
+    // "DENY" text on stamp
+    const stampText = currentScene.add.text(0, 0, 'DENY', {
         fontSize: '12px',
         fontFamily: 'Segoe UI',
         color: '#fff',
@@ -68,7 +68,7 @@ function shoot() {
     
     currentScene.physics.add.existing(stamp);
     stamp.body.setVelocity(0, -450);
-    stamp.body.setSize(35, 25);
+    stamp.body.setSize(40, 28);
     
     // Store stamp identifier
     stamp.setData('isStamp', true);
