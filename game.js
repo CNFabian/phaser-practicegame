@@ -34,9 +34,14 @@ let adviceTimer;
 let gameStarted = false;
 let currentScene;
 
+// Lane system for better spacing
+let occupiedLanes = new Set();
+let laneWidth = 180;
+let totalLanes = 4;
+
 // Mortgage advice database
 const adviceDatabase = [
-    // BAD ADVICE (Red - to blast)
+    // BAD ADVICE (to blast)
     { text: "Adjust rate mortgages\nwithout understanding", isBad: true },
     { text: "Skipping the\npre-approval process", isBad: true },
     { text: "Maxing out your\napproved budget", isBad: true },
@@ -45,7 +50,9 @@ const adviceDatabase = [
     { text: "Waiving home\ninspection contingency", isBad: true },
     { text: "Taking the first\noffer you see", isBad: true },
     { text: "Hidden fees and\npredatory terms", isBad: true },
-    // GOOD ADVICE (Green - to let pass)
+    { text: "Zero down payment\nis always best", isBad: true },
+    { text: "Credit scores\ndon't matter much", isBad: true },
+    // GOOD ADVICE (to let pass)
     { text: "Shop for best\nmortgage rates", isBad: false },
     { text: "Get pre-approved\nearly", isBad: false },
     { text: "Keep debt-to-income\nratio low", isBad: false },
@@ -53,7 +60,9 @@ const adviceDatabase = [
     { text: "Lock in good\ninterest rate", isBad: false },
     { text: "Understand closing\ncosts upfront", isBad: false },
     { text: "Fixed-rate mortgage\nfor stability", isBad: false },
-    { text: "Review all loan\ndocuments carefully", isBad: false }
+    { text: "Review all loan\ndocuments carefully", isBad: false },
+    { text: "Build emergency fund\nbefore buying", isBad: false },
+    { text: "Get professional\nhome inspection", isBad: false }
 ];
 
 function preload() {
@@ -72,6 +81,9 @@ function create() {
     score = 0;
     lives = 3;
     gameOver = false;
+    
+    // Clear lane tracking for new game
+    occupiedLanes.clear();
 
     // Create office background elements
     createOfficeBackground.call(this);
@@ -147,8 +159,8 @@ function create() {
         strokeThickness: 3
     });
 
-    // Instructions
-    this.add.text(450, 16, 'BLAST BAD ADVICE (Red) • APPROVE GOOD PRACTICES (Green)', {
+    // Instructions - updated for new gameplay
+    this.add.text(450, 16, 'READ CAREFULLY! BLAST BAD ADVICE • APPROVE GOOD PRACTICES', {
         fontSize: '18px',
         fontFamily: 'Segoe UI',
         color: '#1a3a52',
@@ -167,7 +179,7 @@ function create() {
 
     // Spawn advice periodically
     adviceTimer = this.time.addEvent({
-        delay: 2200,
+        delay: 3000, // Increased delay for better spacing
         callback: spawnAdvice,
         callbackScope: this,
         loop: true
@@ -243,7 +255,7 @@ function showStartScreen() {
     const instructionsBg = this.add.rectangle(450, 390, 700, 300, 0xffffff, 0.95);
     instructionsBg.setStrokeStyle(4, 0x1a3a52);
 
-    this.add.text(450, 270, 'HOW TO PLAY:', {
+    this.add.text(450, 270, 'HOW TO PLAY - CHALLENGE MODE:', {
         fontSize: '24px',
         fontFamily: 'Segoe UI',
         color: '#C0392B',
@@ -251,20 +263,21 @@ function showStartScreen() {
     }).setOrigin(0.5);
 
     const instructions = [
-        '🚫 BLAST BAD FINANCIAL ADVICE (Red) = +10 points',
-        '✅ APPROVE GOOD PRACTICES (Green) = +5 points',
-        '❌ Approve bad advice or reject good advice = Lose a life',
+        '🚫 BLAST BAD FINANCIAL ADVICE = +10 points',
+        '✅ APPROVE GOOD PRACTICES = +5 points',
+        '❌ ALL ADVICE LOOKS THE SAME - READ CAREFULLY!',
+        '❌ Wrong choice = Lose a life',
         '',
         '⌨️  Use Arrow Keys to move your desk',
         '📋 Press SPACE or Click to stamp documents'
     ];
 
     instructions.forEach((line, index) => {
-        this.add.text(450, 310 + (index * 35), line, {
-            fontSize: '18px',
+        this.add.text(450, 310 + (index * 30), line, {
+            fontSize: '16px',
             fontFamily: 'Segoe UI',
             color: '#2C3E50',
-            fontStyle: index === 3 ? 'normal' : 'normal'
+            fontStyle: index === 4 ? 'normal' : 'normal'
         }).setOrigin(0.5);
     });
 
@@ -299,41 +312,66 @@ function spawnAdvice() {
 
     // Random advice from database
     const adviceData = Phaser.Utils.Array.GetRandom(adviceDatabase);
-    const x = Phaser.Math.Between(100, 800);
     
-    // Bubble color based on type
-    const color = adviceData.isBad ? 0xE74C3C : 0x27AE60;
+    // Find available lanes to prevent overlap
+    let availableLanes = [];
+    for (let i = 0; i < totalLanes; i++) {
+        if (!occupiedLanes.has(i)) {
+            availableLanes.push(i);
+        }
+    }
     
-    // Create document/bubble shape
-    const bubble = this.add.rectangle(x, -60, 100, 70, color, 0.9);
-    bubble.setStrokeStyle(3, 0xffffff);
+    // If all lanes are occupied, clear some older ones
+    if (availableLanes.length === 0) {
+        occupiedLanes.clear();
+        availableLanes = [0, 1, 2, 3];
+    }
+    
+    // Choose random available lane
+    const selectedLane = Phaser.Utils.Array.GetRandom(availableLanes);
+    occupiedLanes.add(selectedLane);
+    
+    // Calculate x position based on lane (with some random offset within lane)
+    const laneCenter = 140 + (selectedLane * laneWidth);
+    const x = laneCenter + Phaser.Math.Between(-30, 30); // Small random offset within lane
+    
+    // All bubbles are now the same color (neutral paper color) - NO VISUAL HINTS!
+    const color = 0xFFFFF0; // Off-white paper color
+    
+    // Create document/bubble shape - larger for better readability
+    const bubble = this.add.rectangle(x, -60, 160, 100, color, 1.0);
+    bubble.setStrokeStyle(3, 0x2C3E50); // Dark border for definition
     
     // Add physics to the bubble
     this.physics.add.existing(bubble);
-    bubble.body.setSize(100, 70);
-    bubble.body.setVelocity(0, Phaser.Math.Between(50, 100));
+    bubble.body.setSize(160, 100);
+    bubble.body.setVelocity(0, Phaser.Math.Between(45, 75)); // Consistent speed range
     
-    // Store advice data
+    // Store advice data and lane info
     bubble.setData('isBad', adviceData.isBad);
     bubble.setData('text', adviceData.text);
+    bubble.setData('lane', selectedLane);
     
-    // Icon on bubble
-    const icon = this.add.text(x, -60, adviceData.isBad ? '⚠️' : '✅', {
-        fontSize: '32px'
-    }).setOrigin(0.5);
+    // Clear lane when bubble is far enough down to allow new spawns
+    currentScene.time.delayedCall(1500, () => {
+        occupiedLanes.delete(selectedLane);
+    });
     
-    // Text on bubble
+    // No more distinguishing icons or colors - player must read to decide!
+    
+    // Text on bubble - much more readable with high contrast
     const text = this.add.text(x, -60, adviceData.text, {
-        fontSize: '11px',
+        fontSize: '16px',
         fontFamily: 'Segoe UI',
-        color: '#fff',
+        color: '#2C3E50', // Dark text on light background
         align: 'center',
         fontStyle: 'bold',
-        wordWrap: { width: 90 }
+        stroke: '#FFFFFF',
+        strokeThickness: 2,
+        wordWrap: { width: 150 }
     }).setOrigin(0.5);
     
     // Store references
-    bubble.setData('icon', icon);
     bubble.setData('textObj', text);
 }
 
@@ -392,7 +430,7 @@ function update() {
             if (body.gameObject.getData && body.gameObject.getData('isStamp')) {
                 stamps.push(body.gameObject);
             } else if (body.gameObject.type === 'Rectangle' && 
-                      (body.gameObject.fillColor === 0xE74C3C || body.gameObject.fillColor === 0x27AE60)) {
+                      body.gameObject.fillColor === 0xFFFFF0) { // Updated color check
                 adviceBubbles.push(body.gameObject);
             }
         }
@@ -470,19 +508,12 @@ function update() {
             }
             
             // Destroy advice and its components
-            const icon = advice.getData('icon');
             const textObj = advice.getData('textObj');
-            if (icon) icon.destroy();
             if (textObj) textObj.destroy();
             advice.destroy();
         } else {
-            // Update icon and text positions to follow the bubble
-            const icon = advice.getData('icon');
+            // Update text position to follow the bubble
             const textObj = advice.getData('textObj');
-            if (icon) {
-                icon.y = advice.y;
-                icon.x = advice.x;
-            }
             if (textObj) {
                 textObj.y = advice.y;
                 textObj.x = advice.x;
@@ -551,9 +582,9 @@ function hitAdvice(stamp, advice) {
     
     scoreText.setText(`Score: ${score}`);
     
-    // Paper shred effect
+    // Paper shred effect - neutral color since we can't distinguish
     for (let i = 0; i < 12; i++) {
-        const particle = this.add.rectangle(advice.x, advice.y, 8, 12, isBadAdvice ? 0xE74C3C : 0x27AE60);
+        const particle = this.add.rectangle(advice.x, advice.y, 8, 12, 0xFFFFF0);
         this.physics.add.existing(particle);
         const angle = (i / 12) * Math.PI * 2;
         particle.body.setVelocity(Math.cos(angle) * 250, Math.sin(angle) * 250);
@@ -568,9 +599,7 @@ function hitAdvice(stamp, advice) {
     }
     
     // Destroy advice and components
-    const icon = advice.getData('icon');
     const textObj = advice.getData('textObj');
-    if (icon) icon.destroy();
     if (textObj) textObj.destroy();
     
     stamp.destroy();
