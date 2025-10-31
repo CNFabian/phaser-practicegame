@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Phaser Game</title>
+    <title>Myth Buster Realty - Homebuying Game</title>
     <style>
         body {
             margin: 0;
@@ -12,11 +12,18 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background-color: #222;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: Arial, sans-serif;
+        }
+        #game-container {
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            border-radius: 10px;
+            overflow: hidden;
         }
     </style>
 </head>
 <body>
+    <div id="game-container"></div>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.js"></script>
     <script src="game.js"></script>
 </body>
