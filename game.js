@@ -3,12 +3,12 @@ const config = {
     type: Phaser.AUTO,
     width: 900,
     height: 700,
-    backgroundColor: '#87CEEB',
+    backgroundColor: '#E8F4F8',
     physics: {
         default: 'arcade',
         arcade: {
             gravity: { y: 0 },
-            debug: false // Set to true to see collision boxes
+            debug: false
         }
     },
     scene: {
@@ -30,28 +30,30 @@ let scoreText;
 let livesText;
 let gameOver = false;
 let lastFired = 0;
-let mythTimer;
+let adviceTimer;
 let gameStarted = false;
 let currentScene;
 
-// Homebuying myths and facts database
-const mythsDatabase = [
-    { text: "You need 20% down\npayment", isMyth: true },
-    { text: "You must have\nperfect credit", isMyth: true },
-    { text: "Renting is always\nthrowing money away", isMyth: true },
-    { text: "Spring is the only\ngood time to buy", isMyth: true },
-    { text: "Pre-approval\nisn't necessary", isMyth: true },
-    { text: "Home inspection\nis optional", isMyth: true },
-    { text: "List price is\nfinal price", isMyth: true },
-    { text: "New homes don't\nneed inspection", isMyth: true },
-    { text: "Get pre-approved\nbefore shopping", isMyth: false },
-    { text: "Location affects\nresale value", isMyth: false },
-    { text: "Budget for closing\ncosts (2-5%)", isMyth: false },
-    { text: "Consider future\nmaintenance costs", isMyth: false },
-    { text: "Review HOA rules\nand fees", isMyth: false },
-    { text: "Compare multiple\nmortgage lenders", isMyth: false },
-    { text: "Home inspection\nprotects buyers", isMyth: false },
-    { text: "Good credit gets\nbetter rates", isMyth: false }
+// Mortgage advice database
+const adviceDatabase = [
+    // BAD ADVICE (Red - to blast)
+    { text: "Adjust rate mortgages\nwithout understanding", isBad: true },
+    { text: "Skipping the\npre-approval process", isBad: true },
+    { text: "Maxing out your\napproved budget", isBad: true },
+    { text: "Ignoring your\ncredit score", isBad: true },
+    { text: "Not comparing\nmultiple lenders", isBad: true },
+    { text: "Waiving home\ninspection contingency", isBad: true },
+    { text: "Taking the first\noffer you see", isBad: true },
+    { text: "Hidden fees and\npredatory terms", isBad: true },
+    // GOOD ADVICE (Green - to let pass)
+    { text: "Shop for best\nmortgage rates", isBad: false },
+    { text: "Get pre-approved\nearly", isBad: false },
+    { text: "Keep debt-to-income\nratio low", isBad: false },
+    { text: "Save for larger\ndown payment", isBad: false },
+    { text: "Lock in good\ninterest rate", isBad: false },
+    { text: "Understand closing\ncosts upfront", isBad: false },
+    { text: "Fixed-rate mortgage\nfor stability", isBad: false },
+    { text: "Review all loan\ndocuments carefully", isBad: false }
 ];
 
 function preload() {
@@ -71,23 +73,47 @@ function create() {
     lives = 3;
     gameOver = false;
 
-    // Create ground
-    const ground = this.add.rectangle(450, 680, 900, 40, 0x8B4513);
+    // Create office background elements
+    createOfficeBackground.call(this);
 
-    // Create player (house with cannon)
-    player = this.add.container(450, 630);
+    // Create desk/ground
+    const desk = this.add.rectangle(450, 660, 900, 80, 0x8B6F47);
+    desk.setStrokeStyle(3, 0x5C4A2F);
     
-    // House body
-    const house = this.add.rectangle(0, 0, 60, 50, 0xFF6B6B);
-    const roof = this.add.triangle(0, -35, -40, 10, 40, 10, 0, -30, 0xDC143C);
-    const door = this.add.rectangle(0, 15, 20, 30, 0x8B4513);
-    const window1 = this.add.rectangle(-15, -5, 12, 12, 0xFFFFAA);
-    const window2 = this.add.rectangle(15, -5, 12, 12, 0xFFFFAA);
+    // Desk surface line
+    this.add.rectangle(450, 620, 900, 4, 0x5C4A2F);
+
+    // Create player (loan officer at desk)
+    player = this.add.container(450, 580);
     
-    // Cannon
-    const cannon = this.add.rectangle(0, -30, 8, 25, 0x4A4A4A);
+    // Desk items
+    const deskTop = this.add.rectangle(0, 30, 120, 60, 0x9C8565);
+    deskTop.setStrokeStyle(2, 0x5C4A2F);
     
-    player.add([house, roof, door, window1, window2, cannon]);
+    // Computer monitor
+    const monitor = this.add.rectangle(-25, 10, 35, 28, 0x2C3E50);
+    const screen = this.add.rectangle(-25, 8, 30, 20, 0x3498DB);
+    const monitorBase = this.add.rectangle(-25, 25, 15, 4, 0x2C3E50);
+    
+    // Loan officer (simplified person)
+    const body = this.add.ellipse(15, 15, 30, 35, 0x34495E);
+    const head = this.add.circle(15, -5, 12, 0xF4D1AE);
+    const hair = this.add.ellipse(15, -12, 24, 16, 0x2C3E50);
+    
+    // Coffee mug
+    const mug = this.add.rectangle(45, 20, 12, 15, 0xF5F5DC);
+    const mugHandle = this.add.arc(51, 20, 6, 90, 270, false, 0xF5F5DC);
+    mugHandle.setStrokeStyle(2, 0xF5F5DC);
+    
+    // Calculator
+    const calc = this.add.rectangle(-5, 25, 18, 22, 0x444444);
+    this.add.rectangle(-5, 23, 14, 10, 0x90EE90);
+    
+    // Stamp/Approval tool (the "cannon")
+    const stamp = this.add.rectangle(15, -25, 10, 30, 0xC0392B);
+    const stampHandle = this.add.rectangle(15, -35, 20, 8, 0x8B0000);
+    
+    player.add([deskTop, monitor, screen, monitorBase, body, head, hair, mug, mugHandle, calc, stamp, stampHandle]);
 
     // Input
     cursors = this.input.keyboard.createCursorKeys();
@@ -105,8 +131,8 @@ function create() {
     // Score and lives display
     scoreText = this.add.text(16, 16, 'Score: 0', {
         fontSize: '24px',
-        fontFamily: 'Arial',
-        color: '#000',
+        fontFamily: 'Segoe UI',
+        color: '#1a3a52',
         fontStyle: 'bold',
         stroke: '#fff',
         strokeThickness: 3
@@ -114,109 +140,152 @@ function create() {
 
     livesText = this.add.text(16, 50, '❤️ Lives: 3', {
         fontSize: '24px',
-        fontFamily: 'Arial',
-        color: '#000',
+        fontFamily: 'Segoe UI',
+        color: '#1a3a52',
         fontStyle: 'bold',
         stroke: '#fff',
         strokeThickness: 3
     });
 
     // Instructions
-    this.add.text(450, 16, 'BLAST THE MYTHS (Red) • LET FACTS PASS (Green)', {
+    this.add.text(450, 16, 'BLAST BAD ADVICE (Red) • APPROVE GOOD PRACTICES (Green)', {
         fontSize: '18px',
-        fontFamily: 'Arial',
-        color: '#000',
+        fontFamily: 'Segoe UI',
+        color: '#1a3a52',
         fontStyle: 'bold',
         stroke: '#fff',
         strokeThickness: 2
     }).setOrigin(0.5, 0);
 
-    this.add.text(450, 45, 'Arrow Keys to Move • SPACE or Click to Shoot', {
+    this.add.text(450, 45, 'Arrow Keys to Move • SPACE or Click to Stamp', {
         fontSize: '14px',
-        fontFamily: 'Arial',
-        color: '#333',
+        fontFamily: 'Segoe UI',
+        color: '#2c5f8d',
         stroke: '#fff',
         strokeThickness: 2
     }).setOrigin(0.5, 0);
 
-    // Spawn myths periodically
-    mythTimer = this.time.addEvent({
-        delay: 2000,
-        callback: spawnMyth,
+    // Spawn advice periodically
+    adviceTimer = this.time.addEvent({
+        delay: 2200,
+        callback: spawnAdvice,
         callbackScope: this,
         loop: true
     });
 
-    // Spawn first myth immediately
-    spawnMyth.call(this);
+    // Spawn first advice immediately
+    spawnAdvice.call(this);
+}
+
+function createOfficeBackground() {
+    // Filing cabinets on the left
+    const cabinet1 = this.add.rectangle(80, 500, 60, 120, 0x6C757D);
+    cabinet1.setStrokeStyle(2, 0x495057);
+    this.add.rectangle(80, 480, 45, 2, 0x495057);
+    this.add.rectangle(80, 510, 45, 2, 0x495057);
+    this.add.rectangle(80, 540, 45, 2, 0x495057);
+    
+    // Filing cabinet handles
+    this.add.rectangle(80, 465, 20, 4, 0xADB5BD);
+    this.add.rectangle(80, 495, 20, 4, 0xADB5BD);
+    this.add.rectangle(80, 525, 20, 4, 0xADB5BD);
+    
+    // Window in background
+    const window = this.add.rectangle(450, 200, 200, 150, 0xB8E6F7);
+    window.setStrokeStyle(8, 0x8B6F47);
+    this.add.rectangle(450, 200, 4, 150, 0x8B6F47);
+    this.add.rectangle(450, 200, 200, 4, 0x8B6F47);
+    
+    // Clouds visible through window
+    this.add.ellipse(420, 180, 40, 25, 0xFFFFFF, 0.7);
+    this.add.ellipse(480, 190, 50, 30, 0xFFFFFF, 0.7);
+    
+    // Wall clock
+    const clock = this.add.circle(750, 150, 35, 0xFFFFFF);
+    clock.setStrokeStyle(4, 0x2C3E50);
+    this.add.text(750, 150, '12', { fontSize: '16px', color: '#2C3E50' }).setOrigin(0.5);
+    this.add.rectangle(750, 150, 2, 20, 0x2C3E50);
+    this.add.rectangle(750, 150, 15, 2, 0x2C3E50);
+    
+    // Diploma/Certificate on wall
+    const cert = this.add.rectangle(200, 180, 80, 60, 0xFFF8DC);
+    cert.setStrokeStyle(3, 0x8B6F47);
+    this.add.text(200, 180, 'MBA\nFinance', {
+        fontSize: '14px',
+        color: '#2C3E50',
+        align: 'center'
+    }).setOrigin(0.5);
 }
 
 function showStartScreen() {
+    // Office background for start screen
+    createOfficeBackground.call(this);
+    
     // Title
-    const title = this.add.text(450, 150, 'MYTH BUSTER REALTY', {
+    const title = this.add.text(450, 120, 'MORTGAGE DEFENDER', {
         fontSize: '56px',
-        fontFamily: 'Arial',
-        color: '#FF6B6B',
+        fontFamily: 'Segoe UI',
+        color: '#1a3a52',
         fontStyle: 'bold',
         stroke: '#fff',
         strokeThickness: 6
     }).setOrigin(0.5);
 
     // Subtitle
-    this.add.text(450, 220, '🏠 Defend Your Dream Home! 🏠', {
+    this.add.text(450, 190, '💰 Protect Your Financial Future! 💰', {
         fontSize: '28px',
-        fontFamily: 'Arial',
-        color: '#333',
+        fontFamily: 'Segoe UI',
+        color: '#2c5f8d',
         fontStyle: 'bold'
     }).setOrigin(0.5);
 
     // Instructions box
-    const instructionsBg = this.add.rectangle(450, 400, 700, 280, 0xffffff, 0.9);
-    instructionsBg.setStrokeStyle(4, 0x333333);
+    const instructionsBg = this.add.rectangle(450, 390, 700, 300, 0xffffff, 0.95);
+    instructionsBg.setStrokeStyle(4, 0x1a3a52);
 
-    this.add.text(450, 300, 'HOW TO PLAY:', {
+    this.add.text(450, 270, 'HOW TO PLAY:', {
         fontSize: '24px',
-        fontFamily: 'Arial',
-        color: '#FF6B6B',
+        fontFamily: 'Segoe UI',
+        color: '#C0392B',
         fontStyle: 'bold'
     }).setOrigin(0.5);
 
     const instructions = [
-        '🔴 BLAST FALSE MYTHS (Red bubbles) = +10 points',
-        '🟢 LET TRUE FACTS PASS (Green bubbles) = +5 points',
-        '❌ Blast a fact or miss a myth = Lose a life',
+        '🚫 BLAST BAD FINANCIAL ADVICE (Red) = +10 points',
+        '✅ APPROVE GOOD PRACTICES (Green) = +5 points',
+        '❌ Approve bad advice or reject good advice = Lose a life',
         '',
-        '⌨️  Use Arrow Keys to move',
-        '🔫 Press SPACE or Click to shoot'
+        '⌨️  Use Arrow Keys to move your desk',
+        '📋 Press SPACE or Click to stamp documents'
     ];
 
     instructions.forEach((line, index) => {
-        this.add.text(450, 340 + (index * 35), line, {
+        this.add.text(450, 310 + (index * 35), line, {
             fontSize: '18px',
-            fontFamily: 'Arial',
-            color: '#333',
+            fontFamily: 'Segoe UI',
+            color: '#2C3E50',
             fontStyle: index === 3 ? 'normal' : 'normal'
         }).setOrigin(0.5);
     });
 
     // Start button
-    const startButton = this.add.rectangle(450, 580, 250, 60, 0x4CAF50);
-    startButton.setStrokeStyle(4, 0x2E7D32);
+    const startButton = this.add.rectangle(450, 570, 250, 60, 0x27AE60);
+    startButton.setStrokeStyle(4, 0x1E8449);
     startButton.setInteractive({ useHandCursor: true });
 
-    const startText = this.add.text(450, 580, 'START GAME', {
+    const startText = this.add.text(450, 570, 'START GAME', {
         fontSize: '28px',
-        fontFamily: 'Arial',
+        fontFamily: 'Segoe UI',
         color: '#fff',
         fontStyle: 'bold'
     }).setOrigin(0.5);
 
     startButton.on('pointerover', () => {
-        startButton.setFillStyle(0x66BB6A);
+        startButton.setFillStyle(0x2ECC71);
     });
 
     startButton.on('pointerout', () => {
-        startButton.setFillStyle(0x4CAF50);
+        startButton.setFillStyle(0x27AE60);
     });
 
     startButton.on('pointerdown', () => {
@@ -225,46 +294,45 @@ function showStartScreen() {
     });
 }
 
-function spawnMyth() {
+function spawnAdvice() {
     if (gameOver) return;
 
-    // Random myth from database
-    const mythData = Phaser.Utils.Array.GetRandom(mythsDatabase);
+    // Random advice from database
+    const adviceData = Phaser.Utils.Array.GetRandom(adviceDatabase);
     const x = Phaser.Math.Between(100, 800);
     
     // Bubble color based on type
-    const color = mythData.isMyth ? 0xFF6B6B : 0x66BB6A;
+    const color = adviceData.isBad ? 0xE74C3C : 0x27AE60;
     
-    // Create the main bubble circle
-    const bubble = this.add.circle(x, -50, 50, color, 0.9);
+    // Create document/bubble shape
+    const bubble = this.add.rectangle(x, -60, 100, 70, color, 0.9);
     bubble.setStrokeStyle(3, 0xffffff);
     
     // Add physics to the bubble
     this.physics.add.existing(bubble);
-    bubble.body.setCircle(50);
-    bubble.body.setVelocity(0, Phaser.Math.Between(60, 120));
+    bubble.body.setSize(100, 70);
+    bubble.body.setVelocity(0, Phaser.Math.Between(50, 100));
     
-    // Store myth data directly on the bubble
-    bubble.setData('isMyth', mythData.isMyth);
-    bubble.setData('text', mythData.text);
+    // Store advice data
+    bubble.setData('isBad', adviceData.isBad);
+    bubble.setData('text', adviceData.text);
     
-    // Icon on top of bubble
-    const icon = this.add.text(x, -58, mythData.isMyth ? '❌' : '✓', {
-        fontSize: '28px'
+    // Icon on bubble
+    const icon = this.add.text(x, -60, adviceData.isBad ? '⚠️' : '✅', {
+        fontSize: '32px'
     }).setOrigin(0.5);
     
-    // Text below bubble
-    const text = this.add.text(x, 10, mythData.text, {
-        fontSize: '12px',
-        fontFamily: 'Arial',
-        color: '#000',
+    // Text on bubble
+    const text = this.add.text(x, -60, adviceData.text, {
+        fontSize: '11px',
+        fontFamily: 'Segoe UI',
+        color: '#fff',
         align: 'center',
         fontStyle: 'bold',
-        backgroundColor: '#ffffff',
-        padding: { x: 8, y: 4 }
+        wordWrap: { width: 90 }
     }).setOrigin(0.5);
     
-    // Store references so we can move them together and destroy them together
+    // Store references
     bubble.setData('icon', icon);
     bubble.setData('textObj', text);
 }
@@ -273,16 +341,33 @@ function shoot() {
     if (gameOver) return;
     
     const time = this.time.now;
-    if (time < lastFired + 200) return; // Fire rate limit
+    if (time < lastFired + 250) return; // Fire rate limit
     
     lastFired = time;
     
-    // Create bullet
-    const bullet = this.add.rectangle(player.x, player.y - 40, 8, 20, 0xFFFF00);
-    bullet.setStrokeStyle(2, 0xFFA500);
+    // Create approval stamp projectile
+    const stamp = this.add.container(player.x, player.y - 50);
     
-    this.physics.add.existing(bullet);
-    bullet.body.setVelocity(0, -500);
+    // Stamp shape
+    const stampBody = this.add.rectangle(0, 0, 35, 25, 0x2E86AB);
+    stampBody.setStrokeStyle(2, 0x1a3a52);
+    
+    // "APPROVED" text on stamp
+    const stampText = this.add.text(0, 0, 'OK', {
+        fontSize: '12px',
+        fontFamily: 'Segoe UI',
+        color: '#fff',
+        fontStyle: 'bold'
+    }).setOrigin(0.5);
+    
+    stamp.add([stampBody, stampText]);
+    
+    this.physics.add.existing(stamp);
+    stamp.body.setVelocity(0, -450);
+    stamp.body.setSize(35, 25);
+    
+    // Store stamp identifier
+    stamp.setData('isStamp', true);
 }
 
 function update() {
@@ -290,102 +375,134 @@ function update() {
     
     // Player movement
     if (cursors.left.isDown) {
-        player.x -= 5;
+        player.x -= 6;
     } else if (cursors.right.isDown) {
-        player.x += 5;
+        player.x += 6;
     }
     
     // Keep player in bounds
-    player.x = Phaser.Math.Clamp(player.x, 50, 850);
+    player.x = Phaser.Math.Clamp(player.x, 80, 820);
     
-    // Manual collision detection between bullets and myths
-    const bullets = this.physics.world.bodies.entries.filter(body => 
-        body.gameObject && body.gameObject.fillColor === 0xFFFF00
-    );
+    // Get all stamps and advice bubbles
+    const stamps = [];
+    const adviceBubbles = [];
     
-    const myths = this.physics.world.bodies.entries.filter(body => 
-        body.gameObject && body.gameObject.type === 'Arc' && 
-        (body.gameObject.fillColor === 0xFF6B6B || body.gameObject.fillColor === 0x66BB6A)
-    );
-    
-    bullets.forEach(bulletBody => {
-        if (!bulletBody.gameObject) return;
-        const bullet = bulletBody.gameObject;
-        
-        myths.forEach(mythBody => {
-            if (!mythBody.gameObject) return;
-            const myth = mythBody.gameObject;
-            
-            if (this.physics.overlap(bullet, myth)) {
-                hitMyth.call(this, bullet, myth);
+    this.physics.world.bodies.entries.forEach(body => {
+        if (body.gameObject) {
+            if (body.gameObject.getData && body.gameObject.getData('isStamp')) {
+                stamps.push(body.gameObject);
+            } else if (body.gameObject.type === 'Rectangle' && 
+                      (body.gameObject.fillColor === 0xE74C3C || body.gameObject.fillColor === 0x27AE60)) {
+                adviceBubbles.push(body.gameObject);
             }
-        });
-        
-        // Remove bullets that go off screen
-        if (bullet.y < -20) {
-            bullet.destroy();
         }
     });
     
-    // Check myths that reached bottom
-    myths.forEach(mythBody => {
-        if (!mythBody.gameObject) return;
-        const myth = mythBody.gameObject;
+    // Check collisions
+    stamps.forEach(stamp => {
+        adviceBubbles.forEach(advice => {
+            if (this.physics.overlap(stamp, advice)) {
+                hitAdvice.call(this, stamp, advice);
+            }
+        });
         
-        if (myth.y > 700) {
-            const isMythTrue = myth.getData('isMyth');
+        // Remove stamps that go off screen
+        if (stamp.y < -30) {
+            stamp.destroy();
+        }
+    });
+    
+    // Check advice that reached bottom
+    adviceBubbles.forEach(advice => {
+        if (advice.y > 700) {
+            const isBadAdvice = advice.getData('isBad');
             
-            if (isMythTrue) {
-                // Myth reached bottom - lose life
+            if (isBadAdvice) {
+                // Bad advice reached bottom - lose life
                 lives--;
                 livesText.setText(`❤️ Lives: ${lives}`);
                 
-                // Flash screen
+                // Flash screen red
                 this.cameras.main.flash(200, 255, 0, 0);
+                
+                // Show warning message
+                const warning = this.add.text(450, 350, 'BAD ADVICE GOT THROUGH!', {
+                    fontSize: '32px',
+                    fontFamily: 'Segoe UI',
+                    color: '#E74C3C',
+                    fontStyle: 'bold',
+                    stroke: '#fff',
+                    strokeThickness: 4
+                }).setOrigin(0.5);
+                
+                this.tweens.add({
+                    targets: warning,
+                    alpha: 0,
+                    duration: 1500,
+                    onComplete: () => warning.destroy()
+                });
                 
                 if (lives <= 0) {
                     endGame.call(this);
                 }
             } else {
-                // Fact passed through - good!
+                // Good advice passed through - good!
                 score += 5;
                 scoreText.setText(`Score: ${score}`);
+                
+                // Show success message
+                const success = this.add.text(advice.x, 600, '+5', {
+                    fontSize: '24px',
+                    fontFamily: 'Segoe UI',
+                    color: '#27AE60',
+                    fontStyle: 'bold',
+                    stroke: '#fff',
+                    strokeThickness: 3
+                }).setOrigin(0.5);
+                
+                this.tweens.add({
+                    targets: success,
+                    y: 550,
+                    alpha: 0,
+                    duration: 1000,
+                    onComplete: () => success.destroy()
+                });
             }
             
-            // Destroy associated objects
-            const icon = myth.getData('icon');
-            const textObj = myth.getData('textObj');
+            // Destroy advice and its components
+            const icon = advice.getData('icon');
+            const textObj = advice.getData('textObj');
             if (icon) icon.destroy();
             if (textObj) textObj.destroy();
-            myth.destroy();
+            advice.destroy();
         } else {
             // Update icon and text positions to follow the bubble
-            const icon = myth.getData('icon');
-            const textObj = myth.getData('textObj');
+            const icon = advice.getData('icon');
+            const textObj = advice.getData('textObj');
             if (icon) {
-                icon.y = myth.y - 8;
-                icon.x = myth.x;
+                icon.y = advice.y;
+                icon.x = advice.x;
             }
             if (textObj) {
-                textObj.y = myth.y + 60;
-                textObj.x = myth.x;
+                textObj.y = advice.y;
+                textObj.x = advice.x;
             }
         }
     });
 }
 
-function hitMyth(bullet, myth) {
-    const isMythTrue = myth.getData('isMyth');
+function hitAdvice(stamp, advice) {
+    const isBadAdvice = advice.getData('isBad');
     
-    if (isMythTrue) {
-        // Correctly blasted a myth
+    if (isBadAdvice) {
+        // Correctly rejected bad advice
         score += 10;
         
         // Success feedback
-        const successText = this.add.text(myth.x, myth.y, '+10\nGOOD!', {
+        const successText = this.add.text(advice.x, advice.y, '+10\nREJECTED!', {
             fontSize: '24px',
-            fontFamily: 'Arial',
-            color: '#4CAF50',
+            fontFamily: 'Segoe UI',
+            color: '#27AE60',
             fontStyle: 'bold',
             align: 'center',
             stroke: '#fff',
@@ -394,22 +511,22 @@ function hitMyth(bullet, myth) {
         
         this.tweens.add({
             targets: successText,
-            y: myth.y - 50,
+            y: advice.y - 60,
             alpha: 0,
-            duration: 1000,
+            duration: 1200,
             onComplete: () => successText.destroy()
         });
         
     } else {
-        // Wrong! Blasted a true fact
+        // Wrong! Rejected good advice
         lives--;
         livesText.setText(`❤️ Lives: ${lives}`);
         
         // Error feedback
-        const errorText = this.add.text(myth.x, myth.y, '-1 LIFE\nTHAT\'S TRUE!', {
+        const errorText = this.add.text(advice.x, advice.y, '-1 LIFE\nGOOD ADVICE!', {
             fontSize: '20px',
-            fontFamily: 'Arial',
-            color: '#FF6B6B',
+            fontFamily: 'Segoe UI',
+            color: '#E74C3C',
             fontStyle: 'bold',
             align: 'center',
             stroke: '#fff',
@@ -418,9 +535,9 @@ function hitMyth(bullet, myth) {
         
         this.tweens.add({
             targets: errorText,
-            y: myth.y - 50,
+            y: advice.y - 60,
             alpha: 0,
-            duration: 1000,
+            duration: 1200,
             onComplete: () => errorText.destroy()
         });
         
@@ -434,86 +551,103 @@ function hitMyth(bullet, myth) {
     
     scoreText.setText(`Score: ${score}`);
     
-    // Explosion effect
-    for (let i = 0; i < 8; i++) {
-        const particle = this.add.circle(myth.x, myth.y, 5, isMythTrue ? 0xFF6B6B : 0x66BB6A);
+    // Paper shred effect
+    for (let i = 0; i < 12; i++) {
+        const particle = this.add.rectangle(advice.x, advice.y, 8, 12, isBadAdvice ? 0xE74C3C : 0x27AE60);
         this.physics.add.existing(particle);
-        const angle = (i / 8) * Math.PI * 2;
-        particle.body.setVelocity(Math.cos(angle) * 200, Math.sin(angle) * 200);
+        const angle = (i / 12) * Math.PI * 2;
+        particle.body.setVelocity(Math.cos(angle) * 250, Math.sin(angle) * 250);
         
         this.tweens.add({
             targets: particle,
             alpha: 0,
-            duration: 500,
+            angle: 360,
+            duration: 600,
             onComplete: () => particle.destroy()
         });
     }
     
-    // Destroy associated objects
-    const icon = myth.getData('icon');
-    const textObj = myth.getData('textObj');
+    // Destroy advice and components
+    const icon = advice.getData('icon');
+    const textObj = advice.getData('textObj');
     if (icon) icon.destroy();
     if (textObj) textObj.destroy();
     
-    bullet.destroy();
-    myth.destroy();
+    stamp.destroy();
+    advice.destroy();
 }
 
 function endGame() {
     gameOver = true;
-    mythTimer.remove();
+    adviceTimer.remove();
     
     // Game over overlay
-    const overlay = this.add.rectangle(450, 350, 900, 700, 0x000000, 0.7);
+    const overlay = this.add.rectangle(450, 350, 900, 700, 0x000000, 0.8);
     
-    this.add.text(450, 250, 'GAME OVER', {
+    this.add.text(450, 220, 'GAME OVER', {
         fontSize: '64px',
-        fontFamily: 'Arial',
-        color: '#FF6B6B',
+        fontFamily: 'Segoe UI',
+        color: '#E74C3C',
         fontStyle: 'bold',
         stroke: '#fff',
         strokeThickness: 6
     }).setOrigin(0.5);
     
-    this.add.text(450, 340, `Final Score: ${score}`, {
+    this.add.text(450, 310, `Final Score: ${score}`, {
         fontSize: '36px',
-        fontFamily: 'Arial',
+        fontFamily: 'Segoe UI',
         color: '#fff',
         fontStyle: 'bold'
     }).setOrigin(0.5);
     
     // Performance message
     let message = '';
-    if (score >= 200) message = 'Real Estate Expert! 🏆';
-    else if (score >= 150) message = 'Great Home Buyer! 🌟';
-    else if (score >= 100) message = 'Getting There! 👍';
-    else message = 'Keep Learning! 📚';
+    if (score >= 200) message = 'Financial Expert! 🏆';
+    else if (score >= 150) message = 'Smart Borrower! 🌟';
+    else if (score >= 100) message = 'Learning Fast! 👍';
+    else message = 'Keep Studying! 📚';
     
-    this.add.text(450, 400, message, {
-        fontSize: '28px',
-        fontFamily: 'Arial',
+    this.add.text(450, 380, message, {
+        fontSize: '32px',
+        fontFamily: 'Segoe UI',
         color: '#FFD700',
         fontStyle: 'bold'
     }).setOrigin(0.5);
     
+    // Educational tip
+    const tips = [
+        'TIP: Always compare at least 3 lenders!',
+        'TIP: Your credit score affects your rate!',
+        'TIP: Budget for 2-5% in closing costs!',
+        'TIP: Pre-approval gives you power!',
+        'TIP: Fixed-rate loans provide stability!'
+    ];
+    
+    this.add.text(450, 440, Phaser.Utils.Array.GetRandom(tips), {
+        fontSize: '20px',
+        fontFamily: 'Segoe UI',
+        color: '#87CEEB',
+        fontStyle: 'italic'
+    }).setOrigin(0.5);
+    
     // Restart button
-    const restartButton = this.add.rectangle(450, 500, 250, 60, 0x4CAF50);
-    restartButton.setStrokeStyle(4, 0x2E7D32);
+    const restartButton = this.add.rectangle(450, 520, 250, 60, 0x27AE60);
+    restartButton.setStrokeStyle(4, 0x1E8449);
     restartButton.setInteractive({ useHandCursor: true });
     
-    const restartText = this.add.text(450, 500, 'PLAY AGAIN', {
+    const restartText = this.add.text(450, 520, 'PLAY AGAIN', {
         fontSize: '28px',
-        fontFamily: 'Arial',
+        fontFamily: 'Segoe UI',
         color: '#fff',
         fontStyle: 'bold'
     }).setOrigin(0.5);
     
     restartButton.on('pointerover', () => {
-        restartButton.setFillStyle(0x66BB6A);
+        restartButton.setFillStyle(0x2ECC71);
     });
     
     restartButton.on('pointerout', () => {
-        restartButton.setFillStyle(0x4CAF50);
+        restartButton.setFillStyle(0x27AE60);
     });
     
     restartButton.on('pointerdown', () => {
