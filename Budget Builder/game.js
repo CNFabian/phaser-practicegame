@@ -31,57 +31,55 @@ let totalBudget = 3000;
 let remainingBudget = 0;
 let spentBudget = 0;
 
-// Category Configuration - Each has unique shape and properties
+// Category Configuration - Structural shapes with health system
 const categories = {
     housing: {
         name: 'Housing',
         color: 0x8B4513,
-        shape: 'rectangle',
-        width: 120,
-        height: 80,
-        cost: 100,
-        icon: '🏠'
+        shape: 'L',
+        baseCost: 100,
+        icon: '🏠',
+        description: 'L-Shape Block'
     },
     food: {
         name: 'Food',
         color: 0xFF6347,
-        shape: 'circle',
-        radius: 45,
-        cost: 80,
-        icon: '🍔'
+        shape: 'O',
+        baseCost: 80,
+        icon: '🍔',
+        description: 'O-Shape Block'
     },
     transport: {
         name: 'Transport',
         color: 0x4169E1,
-        shape: 'trapezoid',
-        width: 100,
-        height: 70,
-        cost: 70,
-        icon: '🚗'
+        shape: 'T',
+        baseCost: 70,
+        icon: '🚗',
+        description: 'T-Shape Block'
     },
     utilities: {
         name: 'Utilities',
         color: 0xFFD700,
-        shape: 'triangle',
-        size: 90,
-        cost: 60,
-        icon: '💡'
+        shape: 'I',
+        baseCost: 60,
+        icon: '💡',
+        description: 'I-Shape Block'
     },
     entertainment: {
         name: 'Entertainment',
         color: 0xFF1493,
-        shape: 'pentagon',
-        radius: 50,
-        cost: 50,
-        icon: '🎮'
+        shape: 'V',
+        baseCost: 50,
+        icon: '🎮',
+        description: 'V-Shape Block'
     },
     savings: {
         name: 'Savings',
         color: 0x32CD32,
-        shape: 'hexagon',
-        radius: 45,
-        cost: 90,
-        icon: '💰'
+        shape: 'Square',
+        baseCost: 90,
+        icon: '💰',
+        description: 'Square Block'
     }
 };
 
@@ -90,6 +88,14 @@ let player;
 let placedBlocks = [];
 let selectedCategory = null;
 let ghostBlock = null;
+let upgradeMode = false;
+let selectedBlockForUpgrade = null;
+let repositionMode = false; // New mode for moving already placed blocks
+let selectedBlockToMove = null;
+let rotationAngle = 0; // Current rotation for ghost block
+
+// Block configuration
+const BLOCK_UNIT = 30; // Size of each unit square in the shape
 
 // UI Elements
 let budgetText;
@@ -98,6 +104,7 @@ let phaseText;
 let categoryButtons = {};
 let startBuildButton;
 let finishBuildButton;
+let upgradeButton;
 
 // Expenses
 let incomingExpenses = [];
@@ -147,16 +154,17 @@ function showStartScreen() {
     }).setOrigin(0.5);
 
     const instructions = [
-        '🏗️ BUILD PHASE: Place budget blocks to protect your character',
-        '💸 EXPENSE PHASE: Incoming expenses attack specific categories',
-        '🎯 GOAL: Build a stable structure that survives all expenses',
+        '🏗️ BUILD PHASE: Place structural blocks to protect your character',
+        '💪 UPGRADE: Click blocks to add budget and strengthen them',
+        '🔄 REPOSITION: Click same category twice to move placed blocks',
+        '🔄 ROTATE: Use LEFT/RIGHT arrow keys to rotate blocks',
         '',
-        '📦 Each shape = different budget category:',
-        '   🏠 Housing (Rectangle) • 🍔 Food (Circle) • 🚗 Transport (Trapezoid)',
-        '   💡 Utilities (Triangle) • 🎮 Entertainment (Pentagon) • 💰 Savings (Hexagon)',
+        '📦 Structural Shapes (like Tetris!):',
+        '   🏠 Housing (L) • 🍔 Food (O) • 🚗 Transport (T)',
+        '   💡 Utilities (I) • 🎮 Entertainment (V) • 💰 Savings (Square)',
         '',
-        '💡 TIP: Balance your structure - use all categories wisely!',
-        '✨ Leftover budget carries to next month!'
+        '💡 TIP: Build a stable structure and upgrade key blocks!',
+        '✨ When expense hits block, health decreases. 0 health = destroyed!'
     ];
 
     instructions.forEach((line, index) => {
@@ -298,13 +306,82 @@ function startBuildPhase() {
     // Show upcoming expenses warning
     showExpenseWarning.call(this);
 
+    // Add keyboard controls for rotation
+    this.input.keyboard.on('keydown-LEFT', () => {
+        if (gameState === 'build' && (ghostBlock || selectedBlockToMove)) {
+            rotationAngle -= Math.PI / 2; // Rotate 90 degrees left
+            if (ghostBlock) {
+                ghostBlock.rotation = rotationAngle;
+            }
+            if (selectedBlockToMove && selectedBlockToMove.container) {
+                selectedBlockToMove.container.rotation = rotationAngle;
+                this.matter.body.setAngle(selectedBlockToMove.body, rotationAngle);
+            }
+        }
+    });
+
+    this.input.keyboard.on('keydown-RIGHT', () => {
+        if (gameState === 'build' && (ghostBlock || selectedBlockToMove)) {
+            rotationAngle += Math.PI / 2; // Rotate 90 degrees right
+            if (ghostBlock) {
+                ghostBlock.rotation = rotationAngle;
+            }
+            if (selectedBlockToMove && selectedBlockToMove.container) {
+                selectedBlockToMove.container.rotation = rotationAngle;
+                this.matter.body.setAngle(selectedBlockToMove.body, rotationAngle);
+            }
+        }
+    });
+
     // Create category selection buttons
     let yPos = 150;
     Object.keys(categories).forEach((key, index) => {
         const cat = categories[key];
         const button = createCategoryButton.call(this, key, cat, 850, yPos);
         categoryButtons[key] = button;
-        yPos += 100;
+        yPos += 90;
+    });
+
+    // Upgrade Mode Toggle button
+    upgradeButton = this.add.rectangle(850, yPos + 20, 140, 50, 0x9B59B6);
+    upgradeButton.setStrokeStyle(3, 0xffffff);
+    upgradeButton.setInteractive({ useHandCursor: true });
+
+    const upgradeText = this.add.text(850, yPos + 20, '💪 UPGRADE\nMODE', {
+        fontSize: '14px',
+        fontFamily: 'Segoe UI',
+        color: '#ffffff',
+        fontStyle: 'bold',
+        align: 'center'
+    }).setOrigin(0.5);
+
+    upgradeButton.on('pointerdown', () => {
+        upgradeMode = !upgradeMode;
+        repositionMode = false; // Turn off reposition mode
+        upgradeButton.setFillStyle(upgradeMode ? 0x8E44AD : 0x9B59B6);
+        upgradeButton.setStrokeStyle(3, upgradeMode ? 0xFFD700 : 0xffffff);
+        
+        if (upgradeMode) {
+            selectedCategory = null;
+            selectedBlockToMove = null;
+            if (ghostBlock) {
+                ghostBlock.destroy();
+                ghostBlock = null;
+            }
+            // Update button highlights
+            Object.keys(categoryButtons).forEach(k => {
+                const btn = categoryButtons[k].list[0];
+                btn.setStrokeStyle(3, 0xffffff);
+            });
+        }
+    });
+
+    upgradeButton.on('pointerover', () => {
+        upgradeButton.setStrokeStyle(5, 0xFFD700);
+    });
+
+    upgradeButton.on('pointerout', () => {
+        upgradeButton.setStrokeStyle(3, upgradeMode ? 0xFFD700 : 0xffffff);
     });
 
     // Finish build button
@@ -329,15 +406,31 @@ function startBuildPhase() {
 
     // Mouse interaction for placing blocks
     this.input.on('pointermove', (pointer) => {
-        if (selectedCategory && ghostBlock && gameState === 'build') {
+        if (selectedCategory && ghostBlock && gameState === 'build' && !upgradeMode && !repositionMode) {
             ghostBlock.x = pointer.x;
             ghostBlock.y = pointer.y;
+        }
+        
+        // Move selected block if in reposition mode
+        if (repositionMode && selectedBlockToMove && pointer.x < 800) {
+            selectedBlockToMove.container.x = pointer.x;
+            selectedBlockToMove.container.y = pointer.y;
+            this.matter.body.setPosition(selectedBlockToMove.body, { x: pointer.x, y: pointer.y });
         }
     });
 
     this.input.on('pointerdown', (pointer) => {
-        if (selectedCategory && pointer.x < 800 && gameState === 'build') {
-            placeBlock.call(this, pointer.x, pointer.y);
+        if (pointer.x < 800 && gameState === 'build') {
+            if (upgradeMode) {
+                // Try to upgrade an existing block
+                upgradeBlock.call(this, pointer.x, pointer.y);
+            } else if (repositionMode) {
+                // Try to select a block to move
+                selectBlockToMove.call(this, pointer.x, pointer.y);
+            } else if (selectedCategory) {
+                // Place new block
+                placeBlock.call(this, pointer.x, pointer.y);
+            }
         }
     });
 }
@@ -346,33 +439,33 @@ function createCategoryButton(key, category, x, y) {
     const container = this.add.container(x, y);
 
     // Button background
-    const bg = this.add.rectangle(0, 0, 140, 80, category.color, 0.8);
+    const bg = this.add.rectangle(0, 0, 140, 70, category.color, 0.8);
     bg.setStrokeStyle(3, 0xffffff);
     bg.setInteractive({ useHandCursor: true });
 
     // Icon and name
-    const icon = this.add.text(0, -15, category.icon, {
-        fontSize: '32px'
+    const icon = this.add.text(0, -18, category.icon, {
+        fontSize: '28px'
     }).setOrigin(0.5);
 
-    const name = this.add.text(0, 15, category.name, {
-        fontSize: '14px',
+    const name = this.add.text(0, 8, category.name, {
+        fontSize: '12px',
         fontFamily: 'Segoe UI',
         color: '#ffffff',
         fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    const cost = this.add.text(0, 30, `$${category.cost}`, {
-        fontSize: '12px',
+    const shape = this.add.text(0, 22, category.shape, {
+        fontSize: '11px',
         fontFamily: 'Segoe UI',
         color: '#FFD700',
         fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    container.add([bg, icon, name, cost]);
+    container.add([bg, icon, name, shape]);
 
     bg.on('pointerdown', () => {
-        if (totalBudget >= category.cost) {
+        if (totalBudget >= category.baseCost && !upgradeMode) {
             selectCategory.call(this, key);
         }
     });
@@ -389,7 +482,37 @@ function createCategoryButton(key, category, x, y) {
 }
 
 function selectCategory(key) {
+    if (upgradeMode) return;
+    
+    // If clicking the same category, toggle into reposition mode
+    if (selectedCategory === key) {
+        repositionMode = true;
+        selectedCategory = null;
+        
+        if (ghostBlock) {
+            ghostBlock.destroy();
+            ghostBlock = null;
+        }
+        
+        // Update button highlights - show all as unselected
+        Object.keys(categoryButtons).forEach(k => {
+            const btn = categoryButtons[k].list[0];
+            btn.setStrokeStyle(3, 0xffffff);
+        });
+        
+        // Show reposition mode indicator
+        phaseText.setText('🔄 REPOSITION MODE - Click blocks to move them!');
+        
+        return;
+    }
+    
+    // Normal category selection
+    repositionMode = false;
     selectedCategory = key;
+    selectedBlockToMove = null;
+    rotationAngle = 0; // Reset rotation
+    
+    phaseText.setText('🏗️ BUILD PHASE - Protect Your Budget!');
     
     // Update button highlights
     Object.keys(categoryButtons).forEach(k => {
@@ -404,143 +527,329 @@ function selectCategory(key) {
     ghostBlock = createGhostBlock.call(this, key);
 }
 
+function selectBlockToMove(x, y) {
+    // If already moving a block, clicking again will place it
+    if (selectedBlockToMove) {
+        selectedBlockToMove.container.setAlpha(1);
+        selectedBlockToMove = null;
+        rotationAngle = 0;
+        return;
+    }
+    
+    // Find block at this position
+    let clickedBlock = null;
+    const clickRadius = 50;
+    
+    for (let block of placedBlocks) {
+        const dx = block.container.x - x;
+        const dy = block.container.y - y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < clickRadius) {
+            clickedBlock = block;
+            break;
+        }
+    }
+    
+    if (!clickedBlock) return;
+    
+    // Select this block for moving
+    selectedBlockToMove = clickedBlock;
+    rotationAngle = clickedBlock.container.rotation;
+    
+    // Visual feedback - make it slightly transparent
+    clickedBlock.container.setAlpha(0.7);
+    
+    // Show instructions
+    const moveText = currentScene.add.text(x, y - 60, '⬆️⬇️ Rotate | Click to place', {
+        fontSize: '14px',
+        fontFamily: 'Segoe UI',
+        color: '#FFD700',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 3
+    }).setOrigin(0.5);
+    
+    currentScene.tweens.add({
+        targets: moveText,
+        alpha: 0,
+        y: y - 90,
+        duration: 2000,
+        onComplete: () => moveText.destroy()
+    });
+}
+
 function createGhostBlock(categoryKey) {
     const cat = categories[categoryKey];
     const graphics = this.add.graphics();
     graphics.lineStyle(3, 0xFFFFFF, 0.8);
     graphics.fillStyle(cat.color, 0.3);
 
-    drawCategoryShape(graphics, cat, 0, 0);
+    drawStructuralShape(graphics, cat, 0, 0);
     graphics.setDepth(100);
 
     return graphics;
 }
 
-function drawCategoryShape(graphics, category, x, y) {
+function drawStructuralShape(graphics, category, x, y) {
+    const u = BLOCK_UNIT;
+    
     switch(category.shape) {
-        case 'rectangle':
-            graphics.fillRect(x - category.width/2, y - category.height/2, category.width, category.height);
-            graphics.strokeRect(x - category.width/2, y - category.height/2, category.width, category.height);
+        case 'L': // L-Shape (Housing)
+            // Three blocks: vertical stack of 2, plus 1 to the right at bottom
+            graphics.fillRect(x - u, y - u, u, u * 2); // Vertical part
+            graphics.strokeRect(x - u, y - u, u, u * 2);
+            graphics.fillRect(x, y, u, u); // Bottom right
+            graphics.strokeRect(x, y, u, u);
             break;
-        case 'circle':
-            graphics.fillCircle(x, y, category.radius);
-            graphics.strokeCircle(x, y, category.radius);
+            
+        case 'O': // O-Shape (Food)
+            // 2x2 square
+            graphics.fillRect(x - u, y - u, u * 2, u * 2);
+            graphics.strokeRect(x - u, y - u, u * 2, u * 2);
             break;
-        case 'triangle':
-            graphics.beginPath();
-            graphics.moveTo(x, y - category.size/2);
-            graphics.lineTo(x - category.size/2, y + category.size/2);
-            graphics.lineTo(x + category.size/2, y + category.size/2);
-            graphics.closePath();
-            graphics.fillPath();
-            graphics.strokePath();
+            
+        case 'T': // T-Shape (Transport)
+            // Three blocks horizontal, one on top center
+            graphics.fillRect(x - u * 1.5, y, u * 3, u); // Horizontal bar
+            graphics.strokeRect(x - u * 1.5, y, u * 3, u);
+            graphics.fillRect(x - u/2, y - u, u, u); // Top center
+            graphics.strokeRect(x - u/2, y - u, u, u);
             break;
-        case 'trapezoid':
-            graphics.beginPath();
-            graphics.moveTo(x - category.width/3, y - category.height/2);
-            graphics.lineTo(x + category.width/3, y - category.height/2);
-            graphics.lineTo(x + category.width/2, y + category.height/2);
-            graphics.lineTo(x - category.width/2, y + category.height/2);
-            graphics.closePath();
-            graphics.fillPath();
-            graphics.strokePath();
+            
+        case 'I': // I-Shape (Utilities)
+            // Four blocks vertical
+            graphics.fillRect(x - u/2, y - u * 2, u, u * 4);
+            graphics.strokeRect(x - u/2, y - u * 2, u, u * 4);
             break;
-        case 'pentagon':
-            drawPolygon(graphics, x, y, category.radius, 5);
+            
+        case 'V': // V-Shape (Entertainment)
+            // Two blocks at angle
+            graphics.fillRect(x - u, y, u, u); // Left
+            graphics.strokeRect(x - u, y, u, u);
+            graphics.fillRect(x, y, u, u); // Right
+            graphics.strokeRect(x, y, u, u);
+            graphics.fillRect(x - u/2, y + u, u, u); // Bottom center
+            graphics.strokeRect(x - u/2, y + u, u, u);
             break;
-        case 'hexagon':
-            drawPolygon(graphics, x, y, category.radius, 6);
+            
+        case 'Square': // Square (Savings)
+            // Single large block
+            graphics.fillRect(x - u * 0.75, y - u * 0.75, u * 1.5, u * 1.5);
+            graphics.strokeRect(x - u * 0.75, y - u * 0.75, u * 1.5, u * 1.5);
             break;
     }
-}
-
-function drawPolygon(graphics, x, y, radius, sides) {
-    graphics.beginPath();
-    for (let i = 0; i < sides; i++) {
-        const angle = (i / sides) * Math.PI * 2 - Math.PI / 2;
-        const px = x + Math.cos(angle) * radius;
-        const py = y + Math.sin(angle) * radius;
-        if (i === 0) {
-            graphics.moveTo(px, py);
-        } else {
-            graphics.lineTo(px, py);
-        }
-    }
-    graphics.closePath();
-    graphics.fillPath();
-    graphics.strokePath();
 }
 
 function placeBlock(x, y) {
-    if (!selectedCategory || totalBudget < categories[selectedCategory].cost) return;
+    if (!selectedCategory || totalBudget < categories[selectedCategory].baseCost) return;
 
     const cat = categories[selectedCategory];
+    const u = BLOCK_UNIT;
     
-    // Create physics body based on shape
-    let body;
+    // Create compound physics body based on shape
+    let parts = [];
     const options = {
         friction: 0.8,
-        restitution: 0.1,
-        label: selectedCategory
+        restitution: 0.1
     };
 
     switch(cat.shape) {
-        case 'rectangle':
-            body = this.matter.add.rectangle(x, y, cat.width, cat.height, options);
-            break;
-        case 'circle':
-            body = this.matter.add.circle(x, y, cat.radius, options);
-            break;
-        case 'triangle':
-            const triangleVertices = [
-                { x: 0, y: -cat.size/2 },
-                { x: -cat.size/2, y: cat.size/2 },
-                { x: cat.size/2, y: cat.size/2 }
+        case 'L':
+            parts = [
+                this.matter.bodies.rectangle(x - u/2, y - u/2, u, u, options), // Top
+                this.matter.bodies.rectangle(x - u/2, y + u/2, u, u, options), // Bottom left
+                this.matter.bodies.rectangle(x + u/2, y + u/2, u, u, options)  // Bottom right
             ];
-            body = this.matter.add.fromVertices(x, y, triangleVertices, options);
             break;
-        case 'trapezoid':
-            const trapVertices = [
-                { x: -cat.width/3, y: -cat.height/2 },
-                { x: cat.width/3, y: -cat.height/2 },
-                { x: cat.width/2, y: cat.height/2 },
-                { x: -cat.width/2, y: cat.height/2 }
+        case 'O':
+            parts = [
+                this.matter.bodies.rectangle(x - u/2, y - u/2, u, u, options),
+                this.matter.bodies.rectangle(x + u/2, y - u/2, u, u, options),
+                this.matter.bodies.rectangle(x - u/2, y + u/2, u, u, options),
+                this.matter.bodies.rectangle(x + u/2, y + u/2, u, u, options)
             ];
-            body = this.matter.add.fromVertices(x, y, trapVertices, options);
             break;
-        case 'pentagon':
-            body = this.matter.add.polygon(x, y, 5, cat.radius, options);
+        case 'T':
+            parts = [
+                this.matter.bodies.rectangle(x - u, y + u/2, u, u, options),    // Left
+                this.matter.bodies.rectangle(x, y + u/2, u, u, options),        // Center bottom
+                this.matter.bodies.rectangle(x + u, y + u/2, u, u, options),    // Right
+                this.matter.bodies.rectangle(x, y - u/2, u, u, options)         // Top center
+            ];
             break;
-        case 'hexagon':
-            body = this.matter.add.polygon(x, y, 6, cat.radius, options);
+        case 'I':
+            parts = [
+                this.matter.bodies.rectangle(x, y - u * 1.5, u, u, options),
+                this.matter.bodies.rectangle(x, y - u/2, u, u, options),
+                this.matter.bodies.rectangle(x, y + u/2, u, u, options),
+                this.matter.bodies.rectangle(x, y + u * 1.5, u, u, options)
+            ];
+            break;
+        case 'V':
+            parts = [
+                this.matter.bodies.rectangle(x - u/2, y + u/2, u, u, options),  // Left
+                this.matter.bodies.rectangle(x + u/2, y + u/2, u, u, options),  // Right
+                this.matter.bodies.rectangle(x, y + u * 1.5, u, u, options)     // Bottom
+            ];
+            break;
+        case 'Square':
+            parts = [
+                this.matter.bodies.rectangle(x, y, u * 1.5, u * 1.5, options)
+            ];
             break;
     }
 
-    // Create visual
+    const body = this.matter.body.create({
+        parts: parts,
+        friction: 0.8,
+        restitution: 0.1,
+        label: selectedCategory
+    });
+    
+    this.matter.world.add(body);
+    
+    // Apply rotation to the physics body
+    this.matter.body.setAngle(body, rotationAngle);
+    
+    // Make body static during build phase so it can be dragged
+    this.matter.body.setStatic(body, true);
+
+    // Create visual container
+    const container = this.add.container(x, y);
+    container.rotation = rotationAngle; // Apply rotation to visuals
+    
     const graphics = this.add.graphics();
     graphics.fillStyle(cat.color, 1);
     graphics.lineStyle(3, 0x000000);
-    drawCategoryShape(graphics, cat, x, y);
+    drawStructuralShape(graphics, cat, 0, 0);
 
-    // Add icon
-    const icon = this.add.text(x, y, cat.icon, {
-        fontSize: '24px'
+    // Health display
+    const health = cat.baseCost;
+    const healthText = this.add.text(0, 0, `$${health}`, {
+        fontSize: '14px',
+        fontFamily: 'Segoe UI',
+        color: '#ffffff',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 3
     }).setOrigin(0.5);
 
-    placedBlocks.push({ body, graphics, icon, category: selectedCategory });
+    // Add icon
+    const icon = this.add.text(0, -15, cat.icon, {
+        fontSize: '20px'
+    }).setOrigin(0.5);
+
+    container.add([graphics, healthText, icon]);
+
+    const blockData = {
+        body,
+        container,
+        graphics,
+        icon,
+        healthText,
+        category: selectedCategory,
+        health: health,
+        maxHealth: health,
+        isDragging: false
+    };
+
+    placedBlocks.push(blockData);
 
     // Deduct from budget
-    totalBudget -= cat.cost;
+    totalBudget -= cat.baseCost;
     budgetText.setText(`Budget: $${totalBudget}`);
 
+    // Reset rotation after placing
+    rotationAngle = 0;
+    if (ghostBlock) {
+        ghostBlock.rotation = 0;
+    }
+
     // Clear selection if no budget left
-    if (totalBudget < cat.cost) {
+    if (totalBudget < cat.baseCost) {
         selectedCategory = null;
         if (ghostBlock) {
             ghostBlock.destroy();
             ghostBlock = null;
         }
     }
+}
+
+function upgradeBlock(x, y) {
+    // Find block at this position
+    let clickedBlock = null;
+    const clickRadius = 50;
+    
+    for (let block of placedBlocks) {
+        const dx = block.container.x - x;
+        const dy = block.container.y - y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < clickRadius) {
+            clickedBlock = block;
+            break;
+        }
+    }
+    
+    if (!clickedBlock) return;
+    
+    const cat = categories[clickedBlock.category];
+    const upgradeAmount = 50; // Each upgrade adds $50 to health
+    
+    if (totalBudget < upgradeAmount) {
+        // Show feedback - not enough budget
+        const warning = currentScene.add.text(x, y - 30, 'Not enough budget!', {
+            fontSize: '14px',
+            fontFamily: 'Segoe UI',
+            color: '#FF6347',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+        
+        currentScene.tweens.add({
+            targets: warning,
+            alpha: 0,
+            y: y - 60,
+            duration: 1000,
+            onComplete: () => warning.destroy()
+        });
+        return;
+    }
+    
+    // Upgrade the block
+    clickedBlock.health += upgradeAmount;
+    clickedBlock.maxHealth += upgradeAmount;
+    totalBudget -= upgradeAmount;
+    
+    budgetText.setText(`Budget: $${totalBudget}`);
+    clickedBlock.healthText.setText(`$${clickedBlock.health}`);
+    
+    // Visual feedback
+    const upgradeMsg = currentScene.add.text(x, y - 30, '+$50 💪', {
+        fontSize: '16px',
+        fontFamily: 'Segoe UI',
+        color: '#27AE60',
+        fontStyle: 'bold',
+        stroke: '#ffffff',
+        strokeThickness: 3
+    }).setOrigin(0.5);
+    
+    currentScene.tweens.add({
+        targets: upgradeMsg,
+        alpha: 0,
+        y: y - 60,
+        duration: 1000,
+        onComplete: () => upgradeMsg.destroy()
+    });
+    
+    // Flash the block
+    currentScene.tweens.add({
+        targets: clickedBlock.graphics,
+        alpha: 0.5,
+        duration: 100,
+        yoyo: true,
+        repeat: 2
+    });
 }
 
 function generateExpenses() {
@@ -611,7 +920,17 @@ function transitionToExpensePhase() {
     // Remove UI elements
     Object.values(categoryButtons).forEach(btn => btn.destroy());
     finishBuildButton.destroy();
+    if (upgradeButton) upgradeButton.destroy();
     if (ghostBlock) ghostBlock.destroy();
+    
+    // Make all blocks dynamic (no longer static)
+    placedBlocks.forEach(block => {
+        this.matter.body.setStatic(block.body, false);
+        // Disable interactivity during expense phase
+        if (block.container) {
+            block.container.disableInteractive();
+        }
+    });
 
     // Clear any visuals and start expense phase
     this.time.delayedCall(500, () => {
@@ -621,6 +940,13 @@ function transitionToExpensePhase() {
 
 function startExpensePhase() {
     phaseText.setText('💸 EXPENSE PHASE - Brace Yourself!');
+
+    // Set up collision handling for expenses hitting blocks
+    currentScene.matter.world.on('collisionstart', (event) => {
+        event.pairs.forEach((pair) => {
+            handleExpenseCollision.call(currentScene, pair);
+        });
+    });
 
     // Launch expenses from all sides
     let delay = 1000;
@@ -643,6 +969,174 @@ function startExpensePhase() {
     });
 }
 
+function handleExpenseCollision(pair) {
+    const { bodyA, bodyB } = pair;
+    
+    // Find if one is an expense
+    let expenseBody = null;
+    let blockBody = null;
+    
+    if (bodyA.label && bodyA.label.startsWith('expense_')) {
+        expenseBody = bodyA;
+        blockBody = bodyB;
+    } else if (bodyB.label && bodyB.label.startsWith('expense_')) {
+        expenseBody = bodyB;
+        blockBody = bodyA;
+    }
+    
+    if (!expenseBody || !blockBody) return;
+    
+    // Get expense category
+    const expenseCategory = expenseBody.label.replace('expense_', '');
+    
+    // Find matching block
+    const matchingBlock = placedBlocks.find(block => {
+        return block.body === blockBody && block.category === expenseCategory;
+    });
+    
+    if (!matchingBlock) return;
+    
+    // Find the expense object
+    const expense = incomingExpenses.find(e => e.body === expenseBody);
+    if (!expense || expense.used) return;
+    
+    expense.used = true; // Mark as used
+    
+    // Damage the block
+    const damage = 30; // Each expense projectile does $30 damage
+    matchingBlock.health -= damage;
+    
+    // Update health display
+    if (matchingBlock.health > 0) {
+        matchingBlock.healthText.setText(`$${matchingBlock.health}`);
+        
+        // Flash effect
+        currentScene.tweens.add({
+            targets: matchingBlock.container,
+            alpha: 0.3,
+            duration: 100,
+            yoyo: true,
+            repeat: 1
+        });
+        
+        // Damage text
+        const damageText = currentScene.add.text(
+            matchingBlock.container.x,
+            matchingBlock.container.y - 30,
+            `-$${damage}`,
+            {
+                fontSize: '16px',
+                fontFamily: 'Segoe UI',
+                color: '#FF6347',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 3
+            }
+        ).setOrigin(0.5);
+        
+        currentScene.tweens.add({
+            targets: damageText,
+            y: matchingBlock.container.y - 60,
+            alpha: 0,
+            duration: 1000,
+            onComplete: () => damageText.destroy()
+        });
+    } else {
+        // Block destroyed
+        destroyBlock.call(currentScene, matchingBlock);
+    }
+    
+    // Remove expense projectile with explosion effect
+    const cat = categories[expenseCategory];
+    
+    // Small explosion particles
+    for (let i = 0; i < 8; i++) {
+        const particle = currentScene.add.circle(
+            expenseBody.position.x,
+            expenseBody.position.y,
+            3,
+            cat.color
+        );
+        
+        const angle = (i / 8) * Math.PI * 2;
+        
+        currentScene.tweens.add({
+            targets: particle,
+            x: particle.x + Math.cos(angle) * 30,
+            y: particle.y + Math.sin(angle) * 30,
+            alpha: 0,
+            duration: 300,
+            onComplete: () => particle.destroy()
+        });
+    }
+    
+    currentScene.matter.world.remove(expenseBody);
+    if (expense.container) expense.container.destroy();
+}
+
+function destroyBlock(block) {
+    // Remove from physics world
+    this.matter.world.remove(block.body);
+    
+    // Destroy container and all visuals
+    if (block.container) block.container.destroy();
+    
+    // Particle explosion effect
+    const cat = categories[block.category];
+    for (let i = 0; i < 15; i++) {
+        const particle = this.add.rectangle(
+            block.body.position.x,
+            block.body.position.y,
+            10,
+            10,
+            cat.color
+        );
+        
+        const angle = (i / 15) * Math.PI * 2;
+        const speed = Phaser.Math.Between(100, 200);
+        
+        this.tweens.add({
+            targets: particle,
+            x: particle.x + Math.cos(angle) * speed,
+            y: particle.y + Math.sin(angle) * speed,
+            alpha: 0,
+            rotation: Math.PI * 2,
+            duration: 800,
+            onComplete: () => particle.destroy()
+        });
+    }
+    
+    // Show destruction message
+    const destroyMsg = this.add.text(
+        block.body.position.x,
+        block.body.position.y,
+        '💥 DESTROYED!',
+        {
+            fontSize: '20px',
+            fontFamily: 'Segoe UI',
+            color: '#FF6347',
+            fontStyle: 'bold',
+            stroke: '#000000',
+            strokeThickness: 4
+        }
+    ).setOrigin(0.5);
+    
+    this.tweens.add({
+        targets: destroyMsg,
+        y: block.body.position.y - 50,
+        alpha: 0,
+        scale: 1.5,
+        duration: 1500,
+        onComplete: () => destroyMsg.destroy()
+    });
+    
+    // Remove from array
+    const index = placedBlocks.indexOf(block);
+    if (index > -1) {
+        placedBlocks.splice(index, 1);
+    }
+}
+
 function launchExpense(categoryKey, category) {
     // Random side: 0=top, 1=right, 2=bottom, 3=left
     const side = Phaser.Math.Between(0, 3);
@@ -652,50 +1146,83 @@ function launchExpense(categoryKey, category) {
         case 0: // Top
             x = Phaser.Math.Between(100, 900);
             y = -50;
-            velocityX = Phaser.Math.Between(-2, 2);
-            velocityY = Phaser.Math.Between(4, 7);
+            velocityX = Phaser.Math.Between(-3, 3);
+            velocityY = Phaser.Math.Between(8, 12); // Fast downward
             break;
         case 1: // Right
             x = 1050;
             y = Phaser.Math.Between(100, 600);
-            velocityX = Phaser.Math.Between(-7, -4);
-            velocityY = Phaser.Math.Between(-2, 2);
+            velocityX = Phaser.Math.Between(-12, -8); // Fast leftward
+            velocityY = Phaser.Math.Between(-3, 3);
             break;
         case 2: // Bottom
             x = Phaser.Math.Between(100, 900);
             y = 750;
-            velocityX = Phaser.Math.Between(-2, 2);
-            velocityY = Phaser.Math.Between(-7, -4);
+            velocityX = Phaser.Math.Between(-3, 3);
+            velocityY = Phaser.Math.Between(-12, -8); // Fast upward
             break;
         case 3: // Left
             x = -50;
             y = Phaser.Math.Between(100, 600);
-            velocityX = Phaser.Math.Between(4, 7);
-            velocityY = Phaser.Math.Between(-2, 2);
+            velocityX = Phaser.Math.Between(8, 12); // Fast rightward
+            velocityY = Phaser.Math.Between(-3, 3);
             break;
     }
 
-    // Create expense projectile
-    const expense = this.matter.add.circle(x, y, 20, {
-        friction: 0.1,
+    // Create small laser-like expense projectile
+    const expense = this.matter.add.circle(x, y, 12, {
+        friction: 0,
+        frictionAir: 0,
         restitution: 0.8,
-        label: `expense_${categoryKey}`
+        label: `expense_${categoryKey}`,
+        isSensor: false
     });
 
     this.matter.body.setVelocity(expense, { x: velocityX, y: velocityY });
 
-    // Visual
-    const graphics = this.add.graphics();
-    graphics.fillStyle(category.color, 1);
-    graphics.lineStyle(2, 0x000000);
-    graphics.fillCircle(0, 0, 20);
-    graphics.strokeCircle(0, 0, 20);
+    // Create laser blast visual
+    const container = this.add.container(x, y);
+    
+    // Outer glow
+    const glow = this.add.circle(0, 0, 15, category.color, 0.3);
+    
+    // Core
+    const core = this.add.circle(0, 0, 10, category.color, 1);
+    
+    // Inner bright spot
+    const bright = this.add.circle(0, 0, 5, 0xFFFFFF, 0.8);
+    
+    // Tail/trail effect
+    const trail = this.add.graphics();
+    trail.fillStyle(category.color, 0.5);
+    const angle = Math.atan2(velocityY, velocityX);
+    trail.fillEllipse(-Math.cos(angle) * 15, -Math.sin(angle) * 15, 20, 8);
+    trail.rotation = angle;
+    
+    container.add([trail, glow, core, bright]);
 
+    // Add dollar sign icon
     const icon = this.add.text(0, 0, '💸', {
-        fontSize: '20px'
+        fontSize: '14px'
     }).setOrigin(0.5);
+    container.add(icon);
 
-    incomingExpenses.push({ body: expense, graphics, icon, category: categoryKey });
+    // Pulsing animation
+    this.tweens.add({
+        targets: glow,
+        scale: 1.3,
+        alpha: 0.1,
+        duration: 300,
+        yoyo: true,
+        repeat: -1
+    });
+
+    incomingExpenses.push({ 
+        body: expense, 
+        container: container,
+        category: categoryKey,
+        used: false 
+    });
 }
 
 function checkGameResult() {
@@ -858,29 +1385,22 @@ function update() {
     if (gameState === 'expenses' || gameState === 'result') {
         // Update visual positions for physics bodies
         placedBlocks.forEach(block => {
-            if (block.body && block.graphics) {
+            if (block.body && block.container) {
                 const pos = block.body.position;
                 const angle = block.body.angle;
                 
-                block.graphics.x = pos.x;
-                block.graphics.y = pos.y;
-                block.graphics.rotation = angle;
-                
-                block.icon.x = pos.x;
-                block.icon.y = pos.y;
-                block.icon.rotation = angle;
+                block.container.x = pos.x;
+                block.container.y = pos.y;
+                block.container.rotation = angle;
             }
         });
 
         incomingExpenses.forEach(expense => {
-            if (expense.body && expense.graphics) {
+            if (expense.body && expense.container) {
                 const pos = expense.body.position;
                 
-                expense.graphics.x = pos.x;
-                expense.graphics.y = pos.y;
-                
-                expense.icon.x = pos.x;
-                expense.icon.y = pos.y;
+                expense.container.x = pos.x;
+                expense.container.y = pos.y;
             }
         });
     }
