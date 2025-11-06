@@ -3,39 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Egyptian Ratscrew - 2 Player Card Game</title>
+    <title>Egyptian Ratscrew</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js"></script>
     <style>
         body {
             margin: 0;
-            padding: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #0a5f38, #1a8e5a);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e22ce 100%);
-            font-family: 'Arial', sans-serif;
+            font-family: Arial, sans-serif;
         }
+        
         #game-container {
-            box-shadow: 0 10px 50px rgba(0,0,0,0.5);
-            border-radius: 15px;
-            overflow: hidden;
+            border: 5px solid #8B4513;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
         }
+        
         .loading {
-            position: fixed;
+            position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            color: white;
+            color: #ffd700;
             font-size: 24px;
             font-weight: bold;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
     </style>
 </head>
 <body>
-    <div class="loading">Loading Egyptian Ratscrew...</div>
-    <div id="game-container"></div>
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.js"></script>
+    <div id="game-container">
+        <div class="loading">Loading Egyptian Ratscrew...</div>
+    </div>
+
     <script src="game.js"></script>
 </body>
 </html>
