@@ -95,6 +95,20 @@ function create() {
     // Desk surface line
     this.add.rectangle(450, 620, 900, 4, 0x5C4A2F);
 
+    // Create player character
+    createPlayer.call(this);
+
+    // Setup input controls
+    setupControls.call(this);
+
+    // Setup UI
+    setupUI.call(this);
+
+    // Start spawning advice
+    startAdviceSpawning.call(this);
+}
+
+function createPlayer() {
     // Create player (simplified loan officer)
     player = this.add.container(450, 580);
     
@@ -111,7 +125,7 @@ function create() {
     const leftArm = this.add.rectangle(-15, 5, 8, 20, 0xF4D1AE);
     const rightArm = this.add.rectangle(15, 5, 8, 20, 0xF4D1AE);
     
-    // Large, obvious stamp tool
+    // Large, obvious stamp tool - DENY stamp (red)
     const stampTool = this.add.rectangle(0, -35, 30, 15, 0xC0392B);
     const stampText = this.add.text(0, -35, 'STAMP', {
         fontSize: '10px',
@@ -121,7 +135,9 @@ function create() {
     }).setOrigin(0.5);
     
     player.add([playerDesk, body, head, tie, leftArm, rightArm, stampTool, stampText]);
+}
 
+function setupControls() {
     // Input
     cursors = this.input.keyboard.createCursorKeys();
     
@@ -134,7 +150,9 @@ function create() {
     this.input.on('pointerdown', () => {
         shoot.call(this);
     });
+}
 
+function setupUI() {
     // Score and lives display
     scoreText = this.add.text(16, 16, 'Score: 0', {
         fontSize: '24px',
@@ -155,7 +173,7 @@ function create() {
     });
 
     // Instructions - updated for new gameplay
-    this.add.text(450, 16, 'READ CAREFULLY! BLAST BAD ADVICE • APPROVE GOOD PRACTICES', {
+    this.add.text(450, 16, 'READ CAREFULLY! DENY BAD ADVICE • APPROVE GOOD PRACTICES', {
         fontSize: '18px',
         fontFamily: 'Segoe UI',
         color: '#1a3a52',
@@ -171,57 +189,165 @@ function create() {
         stroke: '#fff',
         strokeThickness: 2
     }).setOrigin(0.5, 0);
-
-    // Spawn advice periodically
-    adviceTimer = this.time.addEvent({
-        delay: 3000, // Increased delay for better spacing
-        callback: spawnAdvice,
-        callbackScope: this,
-        loop: true
-    });
-
-    // Spawn first advice immediately
-    spawnAdvice.call(this);
 }
 
 function createOfficeBackground() {
-    // Filing cabinets on the left
-    const cabinet1 = this.add.rectangle(80, 500, 60, 120, 0x6C757D);
+    // Filing cabinets on the left (enhanced) - PROPERLY POSITIONED ON FLOOR
+    const cabinet1 = this.add.rectangle(80, 560, 60, 120, 0x6C757D);
     cabinet1.setStrokeStyle(2, 0x495057);
-    this.add.rectangle(80, 480, 45, 2, 0x495057);
-    this.add.rectangle(80, 510, 45, 2, 0x495057);
-    this.add.rectangle(80, 540, 45, 2, 0x495057);
+    
+    // Cabinet drawers
+    this.add.rectangle(80, 520, 45, 2, 0x495057);
+    this.add.rectangle(80, 550, 45, 2, 0x495057);
+    this.add.rectangle(80, 580, 45, 2, 0x495057);
+    this.add.rectangle(80, 610, 45, 2, 0x495057);
     
     // Filing cabinet handles
-    this.add.rectangle(80, 465, 20, 4, 0xADB5BD);
-    this.add.rectangle(80, 495, 20, 4, 0xADB5BD);
-    this.add.rectangle(80, 525, 20, 4, 0xADB5BD);
+    this.add.rectangle(95, 505, 8, 4, 0xADB5BD);
+    this.add.rectangle(95, 535, 8, 4, 0xADB5BD);
+    this.add.rectangle(95, 565, 8, 4, 0xADB5BD);
+    this.add.rectangle(95, 595, 8, 4, 0xADB5BD);
     
-    // Window in background
-    const window = this.add.rectangle(450, 200, 200, 150, 0xB8E6F7);
+    // Cabinet labels
+    this.add.text(80, 505, 'A-F', { fontSize: '8px', color: '#fff' }).setOrigin(0.5);
+    this.add.text(80, 535, 'G-M', { fontSize: '8px', color: '#fff' }).setOrigin(0.5);
+    this.add.text(80, 565, 'N-S', { fontSize: '8px', color: '#fff' }).setOrigin(0.5);
+    this.add.text(80, 595, 'T-Z', { fontSize: '8px', color: '#fff' }).setOrigin(0.5);
+    
+    // Second filing cabinet - PROPERLY POSITIONED ON FLOOR
+    const cabinet2 = this.add.rectangle(150, 560, 60, 120, 0x5D6975);
+    cabinet2.setStrokeStyle(2, 0x495057);
+    this.add.rectangle(150, 540, 45, 2, 0x495057);
+    this.add.rectangle(150, 570, 45, 2, 0x495057);
+    this.add.rectangle(150, 600, 45, 2, 0x495057);
+    
+    // Window in background (enhanced)
+    const window = this.add.rectangle(450, 200, 220, 160, 0xB8E6F7);
     window.setStrokeStyle(8, 0x8B6F47);
-    this.add.rectangle(450, 200, 4, 150, 0x8B6F47);
-    this.add.rectangle(450, 200, 200, 4, 0x8B6F47);
+    
+    // Window frame divisions
+    this.add.rectangle(450, 200, 4, 160, 0x8B6F47);
+    this.add.rectangle(450, 200, 220, 4, 0x8B6F47);
+    this.add.rectangle(395, 200, 4, 160, 0x8B6F47);
+    this.add.rectangle(505, 200, 4, 160, 0x8B6F47);
     
     // Clouds visible through window
-    this.add.ellipse(420, 180, 40, 25, 0xFFFFFF, 0.7);
-    this.add.ellipse(480, 190, 50, 30, 0xFFFFFF, 0.7);
+    this.add.ellipse(420, 170, 50, 30, 0xFFFFFF, 0.8);
+    this.add.ellipse(480, 180, 60, 35, 0xFFFFFF, 0.7);
+    this.add.ellipse(460, 220, 40, 25, 0xFFFFFF, 0.6);
     
-    // Wall clock
-    const clock = this.add.circle(750, 150, 35, 0xFFFFFF);
-    clock.setStrokeStyle(4, 0x2C3E50);
-    this.add.text(750, 150, '12', { fontSize: '16px', color: '#2C3E50' }).setOrigin(0.5);
-    this.add.rectangle(750, 150, 2, 20, 0x2C3E50);
-    this.add.rectangle(750, 150, 15, 2, 0x2C3E50);
+    // Building silhouette in distance
+    this.add.rectangle(400, 250, 20, 40, 0x34495E, 0.4);
+    this.add.rectangle(500, 240, 30, 50, 0x2C3E50, 0.3);
+    
+    // Simple wall clock (simplified)
+    const clock = this.add.circle(750, 150, 30, 0xFFFFFF);
+    clock.setStrokeStyle(3, 0x2C3E50);
+    
+    // Simple clock hands pointing to 2:30
+    this.add.rectangle(750, 140, 2, 15, 0x2C3E50); // Hour hand
+    this.add.rectangle(760, 150, 20, 2, 0x2C3E50); // Minute hand
+    this.add.circle(750, 150, 3, 0x2C3E50); // Center dot
     
     // Diploma/Certificate on wall
-    const cert = this.add.rectangle(200, 180, 80, 60, 0xFFF8DC);
+    const cert = this.add.rectangle(200, 180, 90, 70, 0xFFF8DC);
     cert.setStrokeStyle(3, 0x8B6F47);
-    this.add.text(200, 180, 'MBA\nFinance', {
-        fontSize: '14px',
+    this.add.text(200, 165, 'MBA', {
+        fontSize: '16px',
+        color: '#2C3E50',
+        fontStyle: 'bold',
+        align: 'center'
+    }).setOrigin(0.5);
+    this.add.text(200, 185, 'Finance', {
+        fontSize: '12px',
         color: '#2C3E50',
         align: 'center'
     }).setOrigin(0.5);
+    this.add.text(200, 200, '2020', {
+        fontSize: '10px',
+        color: '#7F8C8D',
+        align: 'center'
+    }).setOrigin(0.5);
+    
+    // Office plants for ambiance - POSITIONED ON FLOOR LEVEL
+    const plant1 = this.add.container(750, 600);
+    const pot1 = this.add.rectangle(0, 15, 30, 25, 0x8B4513);
+    const stem1 = this.add.rectangle(0, -10, 4, 30, 0x228B22);
+    const leaf1 = this.add.ellipse(-8, -25, 20, 12, 0x32CD32);
+    const leaf2 = this.add.ellipse(8, -20, 15, 10, 0x228B22);
+    plant1.add([pot1, stem1, leaf1, leaf2]);
+    
+    // Bookshelf - POSITIONED ON FLOOR LEVEL
+    const bookshelf = this.add.rectangle(820, 540, 60, 160, 0x8B6F47);
+    bookshelf.setStrokeStyle(2, 0x5C4A2F);
+    
+    // Shelf divisions
+    this.add.rectangle(820, 480, 55, 3, 0x5C4A2F);
+    this.add.rectangle(820, 520, 55, 3, 0x5C4A2F);
+    this.add.rectangle(820, 560, 55, 3, 0x5C4A2F);
+    this.add.rectangle(820, 600, 55, 3, 0x5C4A2F);
+    
+    // Books on shelves
+    this.add.rectangle(810, 490, 8, 25, 0xC0392B);
+    this.add.rectangle(820, 490, 8, 25, 0x2980B9);
+    this.add.rectangle(830, 490, 8, 25, 0x27AE60);
+    this.add.rectangle(810, 530, 8, 25, 0x8E44AD);
+    this.add.rectangle(825, 530, 8, 25, 0xE67E22);
+    
+    // Computer monitor on a side desk - POSITIONED ON FLOOR LEVEL
+    const sideDesk = this.add.rectangle(650, 600, 120, 40, 0x8B6F47);
+    sideDesk.setStrokeStyle(2, 0x5C4A2F);
+    
+    const monitor = this.add.rectangle(650, 570, 80, 50, 0x2C3E50);
+    monitor.setStrokeStyle(2, 0x1A252F);
+    const screen = this.add.rectangle(650, 565, 70, 40, 0x3498DB);
+    const stand = this.add.rectangle(650, 595, 20, 15, 0x7F8C8D);
+    
+    // Motivational poster
+    const poster = this.add.rectangle(300, 180, 70, 90, 0xFFFFFF);
+    poster.setStrokeStyle(2, 0x2C3E50);
+    this.add.text(300, 160, 'SUCCESS', {
+        fontSize: '12px',
+        color: '#2C3E50',
+        fontStyle: 'bold'
+    }).setOrigin(0.5);
+    this.add.text(300, 180, 'Starts with', {
+        fontSize: '8px',
+        color: '#7F8C8D'
+    }).setOrigin(0.5);
+    this.add.text(300, 195, 'PLANNING', {
+        fontSize: '10px',
+        color: '#C0392B',
+        fontStyle: 'bold'
+    }).setOrigin(0.5);
+    
+    // Wall calendar
+    const calendar = this.add.rectangle(600, 180, 60, 80, 0xFFFFFF);
+    calendar.setStrokeStyle(2, 0x2C3E50);
+    this.add.text(600, 155, 'NOV', {
+        fontSize: '14px',
+        color: '#C0392B',
+        fontStyle: 'bold'
+    }).setOrigin(0.5);
+    this.add.text(600, 175, '2025', {
+        fontSize: '10px',
+        color: '#2C3E50'
+    }).setOrigin(0.5);
+    this.add.text(600, 195, '04', {
+        fontSize: '24px',
+        color: '#2C3E50',
+        fontStyle: 'bold'
+    }).setOrigin(0.5);
+    
+    // Office supplies on background desk - POSITIONED ON THE DESK
+    this.add.rectangle(680, 590, 15, 4, 0xF39C12); // Stapler
+    this.add.rectangle(700, 588, 8, 8, 0x8E44AD); // Tape dispenser
+    this.add.rectangle(720, 590, 4, 20, 0x2C3E50); // Pen holder
+    
+    // Small trash can on floor - POSITIONED ON FLOOR
+    const trashCan = this.add.rectangle(250, 600, 25, 35, 0x7F8C8D);
+    trashCan.setStrokeStyle(2, 0x5D6975);
+    const trashLid = this.add.ellipse(250, 583, 30, 8, 0x95A5A6);
 }
 
 function showStartScreen() {
@@ -258,7 +384,7 @@ function showStartScreen() {
     }).setOrigin(0.5);
 
     const instructions = [
-        '🚫 BLAST BAD FINANCIAL ADVICE = +10 points',
+        '🚫 DENY BAD FINANCIAL ADVICE = +10 points',
         '✅ APPROVE GOOD PRACTICES = +5 points',
         '❌ ALL ADVICE LOOKS THE SAME - READ CAREFULLY!',
         '❌ Wrong choice = Lose a life',
@@ -334,11 +460,11 @@ function spawnAdvice() {
     const color = 0xFFFFF0; // Off-white paper color
     
     // Create document/bubble shape - larger for better readability
-    const bubble = this.add.rectangle(x, -60, 160, 100, color, 1.0);
+    const bubble = currentScene.add.rectangle(x, -60, 160, 100, color, 1.0);
     bubble.setStrokeStyle(3, 0x2C3E50); // Dark border for definition
     
     // Add physics to the bubble
-    this.physics.add.existing(bubble);
+    currentScene.physics.add.existing(bubble);
     bubble.body.setSize(160, 100);
     bubble.body.setVelocity(0, Phaser.Math.Between(45, 75)); // Consistent speed range
     
@@ -352,10 +478,8 @@ function spawnAdvice() {
         occupiedLanes.delete(selectedLane);
     });
     
-    // No more distinguishing icons or colors - player must read to decide!
-    
     // Text on bubble - much more readable with high contrast
-    const text = this.add.text(x, -60, adviceData.text, {
+    const text = currentScene.add.text(x, -60, adviceData.text, {
         fontSize: '16px',
         fontFamily: 'Segoe UI',
         color: '#2C3E50', // Dark text on light background
@@ -370,23 +494,36 @@ function spawnAdvice() {
     bubble.setData('textObj', text);
 }
 
+function startAdviceSpawning() {
+    // Spawn advice periodically
+    adviceTimer = currentScene.time.addEvent({
+        delay: 3000, // Increased delay for better spacing
+        callback: spawnAdvice,
+        callbackScope: currentScene,
+        loop: true
+    });
+
+    // Spawn first advice immediately
+    spawnAdvice.call(currentScene);
+}
+
 function shoot() {
     if (gameOver) return;
     
-    const time = this.time.now;
+    const time = currentScene.time.now;
     if (time < lastFired + 250) return; // Fire rate limit
     
     lastFired = time;
     
-    // Create approval stamp projectile
-    const stamp = this.add.container(player.x, player.y - 50);
+    // Create DENY stamp projectile - red stamp
+    const stamp = currentScene.add.container(player.x, player.y - 50);
     
-    // Stamp shape
-    const stampBody = this.add.rectangle(0, 0, 35, 25, 0x2E86AB);
-    stampBody.setStrokeStyle(2, 0x1a3a52);
+    // Stamp shape - red for denial
+    const stampBody = currentScene.add.rectangle(0, 0, 40, 28, 0xC0392B);
+    stampBody.setStrokeStyle(2, 0x8B0000);
     
-    // "APPROVED" text on stamp
-    const stampText = this.add.text(0, 0, 'OK', {
+    // "DENY" text on stamp
+    const stampText = currentScene.add.text(0, 0, 'DENY', {
         fontSize: '12px',
         fontFamily: 'Segoe UI',
         color: '#fff',
@@ -395,9 +532,9 @@ function shoot() {
     
     stamp.add([stampBody, stampText]);
     
-    this.physics.add.existing(stamp);
+    currentScene.physics.add.existing(stamp);
     stamp.body.setVelocity(0, -450);
-    stamp.body.setSize(35, 25);
+    stamp.body.setSize(40, 28);
     
     // Store stamp identifier
     stamp.setData('isStamp', true);
@@ -420,7 +557,7 @@ function update() {
     const stamps = [];
     const adviceBubbles = [];
     
-    this.physics.world.bodies.entries.forEach(body => {
+    currentScene.physics.world.bodies.entries.forEach(body => {
         if (body.gameObject) {
             if (body.gameObject.getData && body.gameObject.getData('isStamp')) {
                 stamps.push(body.gameObject);
@@ -434,8 +571,8 @@ function update() {
     // Check collisions
     stamps.forEach(stamp => {
         adviceBubbles.forEach(advice => {
-            if (this.physics.overlap(stamp, advice)) {
-                hitAdvice.call(this, stamp, advice);
+            if (currentScene.physics.overlap(stamp, advice)) {
+                hitAdvice.call(currentScene, stamp, advice);
             }
         });
         
@@ -456,10 +593,10 @@ function update() {
                 livesText.setText(`❤️ Lives: ${lives}`);
                 
                 // Flash screen red
-                this.cameras.main.flash(200, 255, 0, 0);
+                currentScene.cameras.main.flash(200, 255, 0, 0);
                 
                 // Show warning message
-                const warning = this.add.text(450, 350, 'BAD ADVICE GOT THROUGH!', {
+                const warning = currentScene.add.text(450, 350, 'BAD ADVICE GOT THROUGH!', {
                     fontSize: '32px',
                     fontFamily: 'Segoe UI',
                     color: '#E74C3C',
@@ -468,7 +605,7 @@ function update() {
                     strokeThickness: 4
                 }).setOrigin(0.5);
                 
-                this.tweens.add({
+                currentScene.tweens.add({
                     targets: warning,
                     alpha: 0,
                     duration: 1500,
@@ -476,7 +613,7 @@ function update() {
                 });
                 
                 if (lives <= 0) {
-                    endGame.call(this);
+                    endGame.call(currentScene);
                 }
             } else {
                 // Good advice passed through - good!
@@ -484,7 +621,7 @@ function update() {
                 scoreText.setText(`Score: ${score}`);
                 
                 // Show success message
-                const success = this.add.text(advice.x, 600, '+5', {
+                const success = currentScene.add.text(advice.x, 600, '+5', {
                     fontSize: '24px',
                     fontFamily: 'Segoe UI',
                     color: '#27AE60',
@@ -493,7 +630,7 @@ function update() {
                     strokeThickness: 3
                 }).setOrigin(0.5);
                 
-                this.tweens.add({
+                currentScene.tweens.add({
                     targets: success,
                     y: 550,
                     alpha: 0,
@@ -521,11 +658,11 @@ function hitAdvice(stamp, advice) {
     const isBadAdvice = advice.getData('isBad');
     
     if (isBadAdvice) {
-        // Correctly rejected bad advice
+        // Correctly denied bad advice
         score += 10;
         
         // Success feedback
-        const successText = this.add.text(advice.x, advice.y, '+10\nREJECTED!', {
+        const successText = this.add.text(advice.x, advice.y, '+10\nDENIED!', {
             fontSize: '24px',
             fontFamily: 'Segoe UI',
             color: '#27AE60',
@@ -544,7 +681,7 @@ function hitAdvice(stamp, advice) {
         });
         
     } else {
-        // Wrong! Rejected good advice
+        // Wrong! Denied good advice
         lives--;
         livesText.setText(`❤️ Lives: ${lives}`);
         
