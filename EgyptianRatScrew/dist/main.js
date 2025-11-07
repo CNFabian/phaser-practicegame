@@ -1,0 +1,63 @@
+import * as Phaser from 'phaser';
+import { GAME_WIDTH, GAME_HEIGHT, COLORS } from './common';
+import { PreloadScene } from './scenes/preload-scene';
+import { MenuScene } from './scenes/menu-scene';
+import { GameScene } from './scenes/game-scene';
+const config = {
+    type: Phaser.AUTO,
+    width: GAME_WIDTH,
+    height: GAME_HEIGHT,
+    parent: 'game-container',
+    backgroundColor: COLORS.BACKGROUND,
+    scene: [PreloadScene, MenuScene, GameScene],
+    physics: {
+        default: 'arcade',
+        arcade: {
+            gravity: { y: 0, x: 0 },
+            debug: false
+        }
+    },
+    scale: {
+        mode: Phaser.Scale.FIT,
+        autoCenter: Phaser.Scale.CENTER_BOTH,
+        min: {
+            width: 800,
+            height: 600
+        },
+        max: {
+            width: 1600,
+            height: 1200
+        }
+    },
+    input: {
+        keyboard: true,
+        mouse: true,
+        touch: true
+    },
+    audio: {
+        disableWebAudio: false
+    },
+    render: {
+        antialias: true,
+        pixelArt: false,
+        roundPixels: true
+    },
+    disableContextMenu: true
+};
+window.addEventListener('load', () => {
+    const loadingElement = document.querySelector('.loading');
+    if (loadingElement) {
+        loadingElement.remove();
+    }
+    const game = new Phaser.Game(config);
+    window.addEventListener('error', (event) => {
+        console.error('Game error:', event.error);
+    });
+    game.scale.on('resize', () => {
+        game.scale.refresh();
+    });
+    console.log('Egyptian Ratscrew game initialized');
+    console.log('Game dimensions:', GAME_WIDTH, 'x', GAME_HEIGHT);
+    console.log('Available scenes: PreloadScene, MenuScene, GameScene');
+});
+export { config };

@@ -85,12 +85,12 @@ export class MenuScene extends Phaser.Scene {
       this.toggleInstructions();
     });
 
-    // Controls hint
-    this.add.text(centerX, this.cameras.main.height - 50, 'Press SPACE to start or ESC for instructions', {
+    // Controls hint - Fixed alpha issue by setting it separately
+    const controlsHint = this.add.text(centerX, this.cameras.main.height - 50, 'Press SPACE to start or ESC for instructions', {
       fontSize: '18px',
-      color: COLORS.WHITE,
-      alpha: 0.8
+      color: COLORS.WHITE
     }).setOrigin(0.5);
+    controlsHint.setAlpha(0.8); // Set alpha separately instead of in TextStyle
   }
 
   private createButton(x: number, y: number, text: string, callback: () => void): Phaser.GameObjects.Container {
@@ -200,7 +200,7 @@ export class MenuScene extends Phaser.Scene {
       const fontSize = line.endsWith(':') ? '20px' : '16px';
       const fontStyle = line.endsWith(':') ? 'bold' : 'normal';
       
-      this.add.text(
+      const instructionText = this.add.text(
         this.cameras.main.centerX,
         this.cameras.main.centerY + yOffset,
         line,
@@ -209,7 +209,10 @@ export class MenuScene extends Phaser.Scene {
           color,
           fontStyle
         }
-      ).setOrigin(0.5).setParent(this.instructionsContainer);
+      ).setOrigin(0.5);
+      
+      // Add to container instead of using setParent (which doesn't exist)
+      this.instructionsContainer.add(instructionText);
       
       yOffset += line === '' ? 10 : 25;
     });

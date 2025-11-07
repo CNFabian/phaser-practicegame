@@ -143,13 +143,13 @@ export class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    // Controls reminder
-    this.add.text(50, this.cameras.main.height - 30, 
+    // Controls reminder - Fixed alpha issue by setting it separately
+    const controlsReminder = this.add.text(50, this.cameras.main.height - 30, 
       'Player 1: Q=Play, A=Slap | Player 2: P=Play, L=Slap | ESC=Menu', {
       fontSize: '16px',
-      color: COLORS.WHITE,
-      alpha: 0.7
+      color: COLORS.WHITE
     });
+    controlsReminder.setAlpha(0.7); // Set alpha separately instead of in TextStyle
 
     // Player labels
     this.add.text(100, this.cameras.main.height - 180, 'PLAYER 1', {

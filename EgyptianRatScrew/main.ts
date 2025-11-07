@@ -85,7 +85,7 @@ window.addEventListener('load', () => {
   // Log game initialization
   console.log('Egyptian Ratscrew game initialized');
   console.log('Game dimensions:', GAME_WIDTH, 'x', GAME_HEIGHT);
-  console.log('Available scenes:', config.scene?.map(scene => scene.constructor.name));
+  console.log('Available scenes: PreloadScene, MenuScene, GameScene');
 });
 
 // Export the game instance for debugging purposes
