@@ -1,0 +1,81 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Egyptian Ratscrew</title><style>body {
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #0a5f38, #1a8e5a);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+        }
+        
+        #game-container {
+            border: 5px solid #8B4513;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            background: #0a5f38;
+        }
+        
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ffd700;
+            font-size: 24px;
+            font-weight: bold;
+            z-index: 1000;
+        }
+
+        .info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #ffd700;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            text-align: center;
+            z-index: 1000;
+        }
+
+        .version {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: #ffd700;
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            #game-container {
+                border-width: 3px;
+            }
+            
+            .info-panel {
+                font-size: 12px;
+                padding: 8px;
+            }
+        }
+
+        /* Loading animation */
+        .loading::after {
+            content: '';
+            animation: dots 1.5s steps(5, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: ''; }
+            40% { content: '.'; }
+            60% { content: '..'; }
+            80%, 100% { content: '...'; }
+        }</style><script defer="defer" src="main.js"></script></head><body><div class="version">v1.0.0</div><div id="game-container"><div class="loading">Loading Egyptian Ratscrew</div></div><div class="info-panel"><strong>Controls:</strong> Player 1: Q=Play, A=Slap | Player 2: P=Play, L=Slap | ESC=Menu, SPACE=Start | <strong>Win by slapping doubles (5-5) or sandwiches (5-7-5)!</strong></div></body></html>

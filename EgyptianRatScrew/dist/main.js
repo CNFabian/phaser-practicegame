@@ -44,20 +44,51 @@ const config = {
     },
     disableContextMenu: true
 };
-window.addEventListener('load', () => {
-    const loadingElement = document.querySelector('.loading');
-    if (loadingElement) {
-        loadingElement.remove();
+function initializeGame() {
+    try {
+        console.log('Initializing Egyptian Ratscrew game...');
+        console.log('Game dimensions:', GAME_WIDTH, 'x', GAME_HEIGHT);
+        const loadingElement = document.querySelector('.loading');
+        if (loadingElement) {
+            loadingElement.remove();
+        }
+        const game = new Phaser.Game(config);
+        window.game = game;
+        window.addEventListener('error', (event) => {
+            console.error('Game error:', event.error);
+        });
+        window.addEventListener('resize', () => {
+            if (game && game.scale) {
+                game.scale.refresh();
+            }
+        });
+        console.log('Egyptian Ratscrew game initialized successfully');
+        console.log('Available scenes: PreloadScene, MenuScene, GameScene');
+        return game;
     }
-    const game = new Phaser.Game(config);
-    window.addEventListener('error', (event) => {
-        console.error('Game error:', event.error);
-    });
-    game.scale.on('resize', () => {
-        game.scale.refresh();
-    });
-    console.log('Egyptian Ratscrew game initialized');
-    console.log('Game dimensions:', GAME_WIDTH, 'x', GAME_HEIGHT);
-    console.log('Available scenes: PreloadScene, MenuScene, GameScene');
+    catch (error) {
+        console.error('Failed to initialize game:', error);
+        const container = document.getElementById('game-container');
+        if (container) {
+            container.innerHTML = `
+        <div style="color: #ff0000; text-align: center; padding: 50px;">
+          <h2>Game Failed to Load</h2>
+          <p>Error: ${error.message}</p>
+          <p>Please check the console for more details.</p>
+        </div>
+      `;
+        }
+    }
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeGame);
+}
+else {
+    initializeGame();
+}
+window.addEventListener('load', () => {
+    if (!window.game) {
+        initializeGame();
+    }
 });
 export { config };

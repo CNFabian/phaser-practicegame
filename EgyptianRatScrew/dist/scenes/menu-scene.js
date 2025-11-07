@@ -6,6 +6,7 @@ export class MenuScene extends Phaser.Scene {
         this.instructionsVisible = false;
     }
     create() {
+        console.log('MenuScene create method called');
         this.createBackground();
         this.createTitle();
         this.createMainMenu();
@@ -38,8 +39,8 @@ export class MenuScene extends Phaser.Scene {
             stroke: COLORS.BLACK,
             strokeThickness: 3
         }).setOrigin(0.5);
-        title.setPostPipeline('Glow');
-        subtitle.setPostPipeline('Glow');
+        title.setShadow(0, 0, COLORS.GOLD, 10, false, true);
+        subtitle.setShadow(0, 0, COLORS.GOLD, 10, false, true);
         this.add.text(centerX, 240, 'The Fast-Paced Card Slapping Game', {
             fontSize: '24px',
             color: COLORS.WHITE,
@@ -104,27 +105,27 @@ export class MenuScene extends Phaser.Scene {
             'OBJECTIVE:',
             'Be the first player to collect all 52 cards!',
             '',
-            'BASIC GAMEPLAY:',
-            '• Players take turns playing cards from their deck',
-            '• Cards are played face-up to a center pile',
-            '• Player 1 uses Q to play, A to slap',
-            '• Player 2 uses P to play, L to slap',
+            'GAMEPLAY:',
+            'Players take turns playing cards from their deck.',
+            'When doubles appear (5-5), slap the pile!',
+            'Sandwiches work too (5-7-5)!',
             '',
-            'FACE CARD CHALLENGES:',
-            '• When a face card is played, the opponent must respond',
-            '• Jack = 1 chance, Queen = 2, King = 3, Ace = 4',
-            '• Play another face card to continue, or lose the pile',
+            'FACE CARDS:',
+            'When a face card is played, the other player must',
+            'respond with face cards or lose the pile:',
+            '• Ace = 4 chances',
+            '• King = 3 chances',
+            '• Queen = 2 chances',
+            '• Jack = 1 chance',
             '',
-            'SLAPPING:',
-            '• DOUBLES: Two consecutive cards of same rank (5-5)',
-            '• SANDWICH: Same rank with one card between (5-7-5)',
-            '• First to slap correctly wins the entire pile',
-            '• Wrong slap = lose one card to the center',
+            'CONTROLS:',
+            'Player 1: Q = Play Card, A = Slap',
+            'Player 2: P = Play Card, L = Slap',
             '',
-            'Press ESC to close this menu'
+            'Click outside this panel or press ESC to close'
         ];
-        let yOffset = -200;
-        instructions.forEach(line => {
+        let yOffset = -220;
+        instructions.forEach((line) => {
             const color = line.endsWith(':') ? COLORS.GOLD : COLORS.WHITE;
             const fontSize = line.endsWith(':') ? '20px' : '16px';
             const fontStyle = line.endsWith(':') ? 'bold' : 'normal';
@@ -162,6 +163,7 @@ export class MenuScene extends Phaser.Scene {
         this.instructionsContainer.setVisible(this.instructionsVisible);
     }
     startGame() {
+        console.log('Starting game...');
         this.cameras.main.fadeOut(500, 0, 0, 0);
         this.cameras.main.once('camerafadeoutcomplete', () => {
             this.scene.start(SCENE_KEYS.GAME);

@@ -11,6 +11,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   public create(): void {
+    console.log('MenuScene create method called');
     this.createBackground();
     this.createTitle();
     this.createMainMenu();
@@ -42,7 +43,7 @@ export class MenuScene extends Phaser.Scene {
   private createTitle(): void {
     const centerX = this.cameras.main.centerX;
     
-    // Main title
+    // Main title - removed problematic setPostPipeline
     const title = this.add.text(centerX, 120, 'EGYPTIAN', {
       fontSize: '64px',
       color: COLORS.GOLD,
@@ -59,9 +60,9 @@ export class MenuScene extends Phaser.Scene {
       strokeThickness: 3
     }).setOrigin(0.5);
 
-    // Add glow effect
-    title.setPostPipeline('Glow');
-    subtitle.setPostPipeline('Glow');
+    // Add alternative glow effect using drop shadow instead of post-pipeline
+    title.setShadow(0, 0, COLORS.GOLD, 10, false, true);
+    subtitle.setShadow(0, 0, COLORS.GOLD, 10, false, true);
 
     // Subtitle
     this.add.text(centerX, 240, 'The Fast-Paced Card Slapping Game', {
@@ -85,12 +86,12 @@ export class MenuScene extends Phaser.Scene {
       this.toggleInstructions();
     });
 
-    // Controls hint - Fixed alpha issue by setting it separately
+    // Controls hint
     const controlsHint = this.add.text(centerX, this.cameras.main.height - 50, 'Press SPACE to start or ESC for instructions', {
       fontSize: '18px',
       color: COLORS.WHITE
     }).setOrigin(0.5);
-    controlsHint.setAlpha(0.8); // Set alpha separately instead of in TextStyle
+    controlsHint.setAlpha(0.8);
   }
 
   private createButton(x: number, y: number, text: string, callback: () => void): Phaser.GameObjects.Container {
@@ -174,32 +175,32 @@ export class MenuScene extends Phaser.Scene {
       'OBJECTIVE:',
       'Be the first player to collect all 52 cards!',
       '',
-      'BASIC GAMEPLAY:',
-      '• Players take turns playing cards from their deck',
-      '• Cards are played face-up to a center pile',
-      '• Player 1 uses Q to play, A to slap',
-      '• Player 2 uses P to play, L to slap',
+      'GAMEPLAY:',
+      'Players take turns playing cards from their deck.',
+      'When doubles appear (5-5), slap the pile!',
+      'Sandwiches work too (5-7-5)!',
       '',
-      'FACE CARD CHALLENGES:',
-      '• When a face card is played, the opponent must respond',
-      '• Jack = 1 chance, Queen = 2, King = 3, Ace = 4',
-      '• Play another face card to continue, or lose the pile',
+      'FACE CARDS:',
+      'When a face card is played, the other player must',
+      'respond with face cards or lose the pile:',
+      '• Ace = 4 chances',
+      '• King = 3 chances', 
+      '• Queen = 2 chances',
+      '• Jack = 1 chance',
       '',
-      'SLAPPING:',
-      '• DOUBLES: Two consecutive cards of same rank (5-5)',
-      '• SANDWICH: Same rank with one card between (5-7-5)',
-      '• First to slap correctly wins the entire pile',
-      '• Wrong slap = lose one card to the center',
+      'CONTROLS:',
+      'Player 1: Q = Play Card, A = Slap',
+      'Player 2: P = Play Card, L = Slap',
       '',
-      'Press ESC to close this menu'
+      'Click outside this panel or press ESC to close'
     ];
 
-    let yOffset = -200;
-    instructions.forEach(line => {
+    let yOffset = -220;
+    instructions.forEach((line) => {
       const color = line.endsWith(':') ? COLORS.GOLD : COLORS.WHITE;
       const fontSize = line.endsWith(':') ? '20px' : '16px';
       const fontStyle = line.endsWith(':') ? 'bold' : 'normal';
-      
+
       const instructionText = this.add.text(
         this.cameras.main.centerX,
         this.cameras.main.centerY + yOffset,
@@ -210,10 +211,8 @@ export class MenuScene extends Phaser.Scene {
           fontStyle
         }
       ).setOrigin(0.5);
-      
-      // Add to container instead of using setParent (which doesn't exist)
+
       this.instructionsContainer.add(instructionText);
-      
       yOffset += line === '' ? 10 : 25;
     });
 
@@ -222,13 +221,14 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private setupInput(): void {
-    // Keyboard controls
+    // Space to start
     this.input.keyboard?.on('keydown-SPACE', () => {
       if (!this.instructionsVisible) {
         this.startGame();
       }
     });
 
+    // ESC for instructions
     this.input.keyboard?.on('keydown-ESC', () => {
       this.toggleInstructions();
     });
@@ -236,14 +236,12 @@ export class MenuScene extends Phaser.Scene {
     // Click outside instructions to close
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (this.instructionsVisible) {
-        // Check if click is outside the instructions panel
         const panelBounds = new Phaser.Geom.Rectangle(
           this.cameras.main.centerX - 350,
           this.cameras.main.centerY - 300,
           700,
           600
         );
-        
         if (!Phaser.Geom.Rectangle.Contains(panelBounds, pointer.x, pointer.y)) {
           this.toggleInstructions();
         }
@@ -257,9 +255,8 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private startGame(): void {
-    // Fade out effect
+    console.log('Starting game...');
     this.cameras.main.fadeOut(500, 0, 0, 0);
-    
     this.cameras.main.once('camerafadeoutcomplete', () => {
       this.scene.start(SCENE_KEYS.GAME);
     });

@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { SCENE_KEYS, ASSET_KEYS, CARD_WIDTH, CARD_HEIGHT, COLORS } from '../common';
+import { SCENE_KEYS, COLORS } from '../common';
 export class PreloadScene extends Phaser.Scene {
     constructor() {
         super({ key: SCENE_KEYS.PRELOAD });
@@ -53,25 +53,24 @@ export class PreloadScene extends Phaser.Scene {
         this.progressBar.fillRect(centerX - 158, centerY + 52, 316 * value, 26);
     }
     loadAssets() {
+        let hasAssets = false;
         try {
-            this.load.spritesheet(ASSET_KEYS.CARDS, 'assets/cards.png', {
-                frameWidth: CARD_WIDTH,
-                frameHeight: CARD_HEIGHT
-            });
         }
         catch (error) {
             console.warn('Card spritesheet not found, will use fallback rendering');
         }
-        this.load.image('background', 'assets/background.png');
-        this.load.audio('shuffle', 'assets/sounds/shuffle.mp3');
-        this.load.audio('slap', 'assets/sounds/slap.mp3');
-        this.load.audio('win', 'assets/sounds/win.mp3');
         if (this.load.totalToLoad === 0) {
-            this.time.delayedCall(100, () => {
+            console.log('No assets to load, proceeding to menu');
+            this.loadingText.setText('No assets to load - proceeding...');
+            this.time.delayedCall(1000, () => {
                 this.scene.start(SCENE_KEYS.MENU);
             });
         }
+        else {
+            this.load.start();
+        }
     }
     create() {
+        console.log('PreloadScene create method called');
     }
 }
