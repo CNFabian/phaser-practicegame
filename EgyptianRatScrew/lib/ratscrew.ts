@@ -65,8 +65,14 @@ export class RatScrew {
   }
 
   get winner(): Player | null {
+    // Check if one player has all 52 cards
     if (this._player1Deck.length === 52) return 1;
     if (this._player2Deck.length === 52) return 2;
+    
+    // Check if one player has no cards and center pile is empty (they've lost)
+    if (this._player1Deck.length === 0 && this._centerPile.length === 0) return 2;
+    if (this._player2Deck.length === 0 && this._centerPile.length === 0) return 1;
+    
     return null;
   }
 
@@ -116,6 +122,8 @@ export class RatScrew {
     const playerDeck = player === 1 ? this._player1Deck : this._player2Deck;
     
     if (playerDeck.length === 0) {
+      // Player has no cards - check for game over
+      this.checkGameOver();
       return false;
     }
 
@@ -136,6 +144,7 @@ export class RatScrew {
       // Non-face card during challenge
       this._challengeRemaining--;
       if (this._challengeRemaining <= 0) {
+        // Challenge failed - original player wins
         this.endChallenge(false);
       } else {
         // Continue challenge
@@ -157,7 +166,15 @@ export class RatScrew {
   }
 
   attemptSlap(player: Player): boolean {
-    if (this._gameState === GameState.GAME_OVER || this._centerPile.length < 2) {
+    // Don't allow slapping if game is over
+    if (this._gameState === GameState.GAME_OVER) {
+      return false;
+    }
+
+    // Need at least 2 cards to slap for doubles (or 3 for sandwiches)
+    if (this._centerPile.length < 2) {
+      // Silently ignore slaps when there aren't enough cards
+      // This prevents penalties for spam clicking before cards are played
       return false;
     }
 
@@ -200,12 +217,15 @@ export class RatScrew {
 
   private endChallenge(challengerWon: boolean): void {
     if (challengerWon) {
-      // Challenger played a face card, they win
-      this.addEvent({
-        type: 'pile_won',
-        player: this._challengePlayer!,
-        message: `Player ${this._challengePlayer} won the challenge!`
-      });
+      // Challenger played a face card, they win the pile
+      if (this._challengePlayer) {
+        this.playerWinsPile(this._challengePlayer);
+        this.addEvent({
+          type: 'pile_won',
+          player: this._challengePlayer,
+          message: `Player ${this._challengePlayer} won the challenge!`
+        });
+      }
     } else {
       // Challenger failed, original player wins
       const originalPlayer = this._challengePlayer === 1 ? 2 : 1;
@@ -217,6 +237,7 @@ export class RatScrew {
       });
     }
 
+    // Reset challenge state
     this._gameState = GameState.PLAYING;
     this._challengePlayer = null;
     this._challengeRemaining = 0;
@@ -236,7 +257,7 @@ export class RatScrew {
     this.addEvent({
       type: 'pile_won',
       player,
-      message: `Player ${player} won the pile!`
+      message: `Player ${player} won the pile! (${playerDeck.length} cards total)`
     });
   }
 
@@ -245,11 +266,29 @@ export class RatScrew {
     
     if (playerDeck.length > 0) {
       const card = playerDeck.shift()!;
-      this._centerPile.unshift(card); // Add to bottom of center pile
+      // Add penalty card to TOP of center pile so it becomes visible
+      this._centerPile.push(card);
+      
+      this.addEvent({
+        type: 'slap_attempt',
+        player,
+        message: `Player ${player} penalized: ${card.display} added to center pile.`
+      });
+    } else {
+      // Player has no cards to penalize
+      this.addEvent({
+        type: 'slap_attempt',
+        player,
+        message: `Player ${player} has no cards to penalize!`
+      });
     }
+    
+    // Check if this causes game over
+    this.checkGameOver();
   }
 
   private getSlappableCondition(): SlapCondition {
+    // Need at least 2 cards for doubles
     if (this._centerPile.length < 2) {
       return 'none';
     }
@@ -258,15 +297,29 @@ export class RatScrew {
     const topCard = pile[pile.length - 1];
     const secondCard = pile[pile.length - 2];
 
+    // Defensive check for undefined cards
+    if (!topCard || !secondCard) {
+      console.error('Undefined cards in center pile during slap check');
+      return 'none';
+    }
+
     // Check for doubles (two consecutive cards of same rank)
     if (topCard.hasSameRank(secondCard)) {
+      console.log(`DOUBLE DETECTED: ${topCard.display} and ${secondCard.display}`);
       return 'doubles';
     }
 
     // Check for sandwich (same rank separated by one card)
     if (pile.length >= 3) {
       const thirdCard = pile[pile.length - 3];
+      
+      if (!thirdCard) {
+        console.error('Undefined third card in center pile during sandwich check');
+        return 'none';
+      }
+      
       if (topCard.hasSameRank(thirdCard)) {
+        console.log(`SANDWICH DETECTED: ${topCard.display}, ${secondCard.display}, ${thirdCard.display}`);
         return 'sandwich';
       }
     }
@@ -281,7 +334,7 @@ export class RatScrew {
       this.addEvent({
         type: 'game_over',
         player: winner,
-        message: `Game Over! Player ${winner} wins with all 52 cards!`
+        message: `Game Over! Player ${winner} wins!`
       });
     }
   }
