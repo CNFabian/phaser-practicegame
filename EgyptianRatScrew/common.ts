@@ -12,10 +12,10 @@ export const ASSET_KEYS = {
   CLICK_TO_START: 'clickToStart'
 } as const;
 
-// Card dimensions and scaling
+// Card dimensions and scaling - INCREASED FROM 0.4 TO 0.6 FOR 50% LARGER CARDS
 export const CARD_WIDTH = 140;
 export const CARD_HEIGHT = 190;
-export const CARD_SCALE = 0.4;
+export const CARD_SCALE = 0.6;
 
 // Game dimensions
 export const GAME_WIDTH = 1200;

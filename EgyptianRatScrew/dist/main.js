@@ -18,16 +18,8 @@ const config = {
         }
     },
     scale: {
-        mode: Phaser.Scale.FIT,
-        autoCenter: Phaser.Scale.CENTER_BOTH,
-        min: {
-            width: 800,
-            height: 600
-        },
-        max: {
-            width: 1600,
-            height: 1200
-        }
+        mode: Phaser.Scale.NONE,
+        autoCenter: Phaser.Scale.NO_CENTER,
     },
     input: {
         keyboard: true,
@@ -44,6 +36,24 @@ const config = {
     },
     disableContextMenu: true
 };
+function scaleCanvas(canvas, container) {
+    const containerRect = container.getBoundingClientRect();
+    const aspectRatio = GAME_WIDTH / GAME_HEIGHT;
+    let newWidth = containerRect.width;
+    let newHeight = containerRect.height;
+    if (newWidth / newHeight > aspectRatio) {
+        newWidth = newHeight * aspectRatio;
+    }
+    else {
+        newHeight = newWidth / aspectRatio;
+    }
+    canvas.style.width = `${newWidth}px`;
+    canvas.style.height = `${newHeight}px`;
+    canvas.style.position = 'absolute';
+    canvas.style.top = '50%';
+    canvas.style.left = '50%';
+    canvas.style.transform = 'translate(-50%, -50%)';
+}
 function initializeGame() {
     try {
         console.log('Initializing Egyptian Ratscrew game...');
@@ -52,43 +62,74 @@ function initializeGame() {
         if (loadingElement) {
             loadingElement.remove();
         }
+        if (window.game) {
+            console.log('Destroying existing game instance...');
+            window.game.destroy(true);
+            window.game = null;
+        }
+        const container = document.getElementById('game-container');
+        if (container) {
+            const existingCanvases = container.querySelectorAll('canvas');
+            existingCanvases.forEach(canvas => canvas.remove());
+            container.style.width = '100%';
+            container.style.height = '100vh';
+            container.style.position = 'relative';
+            container.style.overflow = 'hidden';
+            container.style.backgroundColor = COLORS.BACKGROUND;
+        }
         const game = new Phaser.Game(config);
         window.game = game;
+        game.events.once('ready', () => {
+            const canvas = game.canvas;
+            const container = document.getElementById('game-container');
+            if (canvas && container) {
+                scaleCanvas(canvas, container);
+                let resizeTimeout;
+                window.addEventListener('resize', () => {
+                    clearTimeout(resizeTimeout);
+                    resizeTimeout = setTimeout(() => {
+                        if (canvas && container) {
+                            scaleCanvas(canvas, container);
+                        }
+                    }, 100);
+                });
+            }
+        });
         window.addEventListener('error', (event) => {
             console.error('Game error:', event.error);
         });
-        window.addEventListener('resize', () => {
-            if (game && game.scale) {
-                game.scale.refresh();
-            }
-        });
         console.log('Egyptian Ratscrew game initialized successfully');
-        console.log('Available scenes: PreloadScene, MenuScene, GameScene');
         return game;
     }
     catch (error) {
         console.error('Failed to initialize game:', error);
         const container = document.getElementById('game-container');
         if (container) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
             container.innerHTML = `
-        <div style="color: #ff0000; text-align: center; padding: 50px;">
+        <div style="color: #ff0000; text-align: center; padding: 50px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
           <h2>Game Failed to Load</h2>
-          <p>Error: ${error.message}</p>
+          <p>Error: ${errorMessage}</p>
           <p>Please check the console for more details.</p>
         </div>
       `;
         }
+        return null;
     }
 }
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeGame);
-}
-else {
+let gameInitialized = false;
+function safeInitializeGame() {
+    if (gameInitialized) {
+        console.log('Game already initialized, skipping...');
+        return;
+    }
+    gameInitialized = true;
     initializeGame();
 }
-window.addEventListener('load', () => {
-    if (!window.game) {
-        initializeGame();
-    }
-});
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', safeInitializeGame);
+}
+else {
+    safeInitializeGame();
+}
 export { config };

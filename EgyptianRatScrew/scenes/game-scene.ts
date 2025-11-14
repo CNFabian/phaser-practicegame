@@ -291,7 +291,7 @@ export class GameScene extends Phaser.Scene {
     this.player2DeckSprite.setVisible(this.game_logic.player2Count > 0);
   }
 
-  // IMPROVED VERSION: Show actual card value during animation transition
+  // IMPROVED VERSION: Consistent card size throughout animation
   private showPlayCardAnimation(player: Player): void {
     const startX = player === 1 ? 100 : this.cameras.main.width - 100;
     const startY = player === 1 ? this.cameras.main.height - 150 : 100;
@@ -319,21 +319,17 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    // Create animated card display showing the actual card
+    // Create animated card display showing the actual card at consistent size
     const animatedCardDisplay = this.createCardDisplay(startX, startY, cardBeingPlayed);
-    
-    // Add a slight scale effect to make it more visible during animation
-    animatedCardDisplay.setScale(CARD_SCALE * 1.1);
     
     // Set depth to ensure it renders on top
     animatedCardDisplay.setDepth(100);
     
-    // Animate the card with the value visible
+    // Animate the card WITHOUT changing scale - maintains consistent size
     this.tweens.add({
       targets: animatedCardDisplay,
       x: endX,
       y: endY,
-      scale: CARD_SCALE, // Scale back to normal size at destination
       duration: 300,
       ease: 'Power2',
       onComplete: () => {
@@ -379,8 +375,8 @@ export class GameScene extends Phaser.Scene {
 
     this.tweens.add({
       targets: feedbackText,
-      y: feedbackText.y - 50,
       alpha: 0,
+      scale: 1.5,
       duration: 1000,
       ease: 'Power2',
       onComplete: () => {
@@ -390,7 +386,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private showWinScreen(): void {
-    // Create semi-transparent overlay
+    // Overlay
     const overlay = this.add.rectangle(
       this.cameras.main.centerX,
       this.cameras.main.centerY,
@@ -400,11 +396,11 @@ export class GameScene extends Phaser.Scene {
       0.8
     );
 
-    // Win message
+    // Win text
     const winText = this.add.text(
       this.cameras.main.centerX,
       this.cameras.main.centerY - 50,
-      `🏆 PLAYER ${this.game_logic.winner} WINS! 🏆`,
+      `PLAYER ${this.game_logic.winner} WINS!`,
       {
         fontSize: '48px',
         color: COLORS.GOLD,
@@ -412,32 +408,20 @@ export class GameScene extends Phaser.Scene {
       }
     ).setOrigin(0.5);
 
-    // Instructions
-    const instructionsText = this.add.text(
+    // Continue instruction
+    const continueText = this.add.text(
       this.cameras.main.centerX,
       this.cameras.main.centerY + 50,
-      'Press ESC to return to menu',
+      'Press SPACE to play again or ESC for menu',
       {
-        fontSize: '24px',
+        fontSize: '20px',
         color: COLORS.WHITE
       }
     ).setOrigin(0.5);
 
-    // Animate win elements
-    winText.setScale(0);
-    this.tweens.add({
-      targets: winText,
-      scale: 1,
-      duration: 500,
-      ease: 'Back.easeOut'
-    });
-
-    instructionsText.setAlpha(0);
-    this.tweens.add({
-      targets: instructionsText,
-      alpha: 1,
-      duration: 1000,
-      delay: 500
+    // Handle restart
+    this.input.keyboard?.on('keydown-SPACE', () => {
+      this.scene.restart();
     });
   }
 
