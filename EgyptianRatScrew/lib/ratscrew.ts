@@ -5,17 +5,19 @@ export class RatScrew {
   private _player1Deck: Card[] = [];
   private _player2Deck: Card[] = [];
   private _centerPile: Card[] = [];
+  private _gameState: GameState = GameState.PLAYING;
   private _currentPlayer: Player = 1;
-  private _gameState: GameState = GameState.MENU;
   private _challengePlayer: Player | null = null;
   private _challengeRemaining: number = 0;
   private _events: GameEvent[] = [];
+  private _pileAwaitingCollection: boolean = false; // NEW: Track if pile needs to be slapped to collect
+  private _pileWinner: Player | null = null; // NEW: Track who won the pile
 
   constructor() {
-    this.newGame();
+    this.initializeGame();
   }
 
-  // Public getters
+  // Getters
   get player1Deck(): readonly Card[] {
     return this._player1Deck;
   }
@@ -32,12 +34,12 @@ export class RatScrew {
     return this._centerPile.length > 0 ? this._centerPile[this._centerPile.length - 1] : null;
   }
 
-  get currentPlayer(): Player {
-    return this._currentPlayer;
-  }
-
   get gameState(): GameState {
     return this._gameState;
+  }
+
+  get currentPlayer(): Player {
+    return this._currentPlayer;
   }
 
   get challengePlayer(): Player | null {
@@ -60,52 +62,58 @@ export class RatScrew {
     return this._centerPile.length;
   }
 
+  get winner(): Player | null {
+    if (this._player1Deck.length === 0 && this._player2Deck.length === 0) {
+      return null;
+    }
+    if (this._player1Deck.length === 52) return 1;
+    if (this._player2Deck.length === 52) return 2;
+    if (this._player1Deck.length === 0) return 2;
+    if (this._player2Deck.length === 0) return 1;
+    return null;
+  }
+
   get events(): readonly GameEvent[] {
     return this._events;
   }
 
-  get winner(): Player | null {
-    // Check if one player has all 52 cards
-    if (this._player1Deck.length === 52) return 1;
-    if (this._player2Deck.length === 52) return 2;
-    
-    // Check if one player has no cards and center pile is empty (they've lost)
-    if (this._player1Deck.length === 0 && this._centerPile.length === 0) return 2;
-    if (this._player2Deck.length === 0 && this._centerPile.length === 0) return 1;
-    
-    return null;
+  get pileAwaitingCollection(): boolean {
+    return this._pileAwaitingCollection;
   }
 
-  get isGameOver(): boolean {
-    return this.winner !== null;
+  get pileWinner(): Player | null {
+    return this._pileWinner;
   }
 
   // Game initialization
-  newGame(): void {
-    // Create and shuffle deck
+  private initializeGame(): void {
     const deck = Card.shuffleDeck(Card.createDeck());
     
-    // Deal cards
     this._player1Deck = deck.slice(0, 26);
     this._player2Deck = deck.slice(26, 52);
     this._centerPile = [];
-    
-    // Reset game state
-    this._currentPlayer = 1;
     this._gameState = GameState.PLAYING;
+    this._currentPlayer = 1;
     this._challengePlayer = null;
     this._challengeRemaining = 0;
-    this._events = [];
+    this._pileAwaitingCollection = false;
+    this._pileWinner = null;
     
     this.addEvent({
       type: 'card_played',
-      message: 'New game started! Player 1 goes first.'
+      player: 1,
+      message: 'Game started! Player 1 goes first.'
     });
   }
 
   // Main game actions
   playCard(player: Player): boolean {
     if (this._gameState === GameState.GAME_OVER) {
+      return false;
+    }
+
+    // Can't play if a pile is awaiting collection
+    if (this._pileAwaitingCollection) {
       return false;
     }
 
@@ -144,7 +152,7 @@ export class RatScrew {
       // Non-face card during challenge
       this._challengeRemaining--;
       if (this._challengeRemaining <= 0) {
-        // Challenge failed - original player wins
+        // Challenge failed - original player wins (but must slap to collect)
         this.endChallenge(false);
       } else {
         // Continue challenge
@@ -171,6 +179,18 @@ export class RatScrew {
       return false;
     }
 
+    // NEW: Check if this is a slap to collect a won pile
+    if (this._pileAwaitingCollection) {
+      if (player === this._pileWinner) {
+        // Correct player slapping to collect their won pile
+        this.collectPile(player);
+        return true;
+      } else {
+        // Wrong player tried to collect - no penalty, just ignore
+        return false;
+      }
+    }
+
     // Need at least 2 cards to slap for doubles (or 3 for sandwiches)
     if (this._centerPile.length < 2) {
       // Silently ignore slaps when there aren't enough cards
@@ -181,13 +201,13 @@ export class RatScrew {
     const condition = this.getSlappableCondition();
     
     if (condition !== 'none') {
-      // Valid slap - player wins the pile
-      this.playerWinsPile(player);
+      // Valid slap - player wins the pile (but must slap again to collect)
+      this.setPileWinner(player);
       this.addEvent({
         type: 'slap_attempt',
         player,
         condition,
-        message: `Player ${player} slapped successfully! (${condition})`
+        message: `Player ${player} slapped successfully! (${condition}) - Slap again to collect!`
       });
       return true;
     } else {
@@ -219,46 +239,59 @@ export class RatScrew {
     if (challengerWon) {
       // Challenger played a face card, they win the pile
       if (this._challengePlayer) {
-        this.playerWinsPile(this._challengePlayer);
+        this.setPileWinner(this._challengePlayer);
         this.addEvent({
           type: 'pile_won',
           player: this._challengePlayer,
-          message: `Player ${this._challengePlayer} won the challenge!`
+          message: `Player ${this._challengePlayer} won the challenge! Slap to collect!`
         });
       }
     } else {
       // Challenger failed, original player wins
       const originalPlayer = this._challengePlayer === 1 ? 2 : 1;
-      this.playerWinsPile(originalPlayer);
+      this.setPileWinner(originalPlayer);
       this.addEvent({
         type: 'challenge_failed',
         player: originalPlayer,
-        message: `Challenge failed! Player ${originalPlayer} wins the pile.`
+        message: `Challenge failed! Player ${originalPlayer} wins the pile - Slap to collect!`
       });
     }
 
-    // Reset challenge state
+    // Reset challenge state but keep pile on table
     this._gameState = GameState.PLAYING;
     this._challengePlayer = null;
     this._challengeRemaining = 0;
   }
 
-  private playerWinsPile(player: Player): void {
+  private setPileWinner(player: Player): void {
+    this._pileAwaitingCollection = true;
+    this._pileWinner = player;
+    this._currentPlayer = player; // Winner's turn next
+  }
+
+  private collectPile(player: Player): void {
     const playerDeck = player === 1 ? this._player1Deck : this._player2Deck;
     
     // Add all center cards to bottom of player's deck
     playerDeck.push(...this._centerPile);
     this._centerPile = [];
     
-    // Player who wins pile goes next
+    // Reset pile collection state
+    this._pileAwaitingCollection = false;
+    this._pileWinner = null;
+    
+    // Player who collected pile goes next
     this._currentPlayer = player;
     this._gameState = GameState.PLAYING;
     
     this.addEvent({
       type: 'pile_won',
       player,
-      message: `Player ${player} won the pile! (${playerDeck.length} cards total)`
+      message: `Player ${player} collected the pile! (${playerDeck.length} cards total)`
     });
+
+    // Check for game over
+    this.checkGameOver();
   }
 
   private penalizePlayer(player: Player): void {
@@ -350,6 +383,11 @@ export class RatScrew {
       return false;
     }
 
+    // Can't play if pile is awaiting collection
+    if (this._pileAwaitingCollection) {
+      return false;
+    }
+
     if (this._gameState === GameState.PLAYING) {
       return player === this._currentPlayer;
     }
@@ -366,6 +404,9 @@ export class RatScrew {
   }
 
   getGameStatusMessage(): string {
+    if (this._pileAwaitingCollection && this._pileWinner) {
+      return `Player ${this._pileWinner}: Slap to collect the pile!`;
+    }
     const latestEvent = this._events[this._events.length - 1];
     return latestEvent?.message || 'Game ready';
   }

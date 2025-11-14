@@ -14,6 +14,7 @@ export class GameScene extends Phaser.Scene {
   private statusText!: Phaser.GameObjects.Text;
   private turnIndicator!: Phaser.GameObjects.Text;
   private challengeText!: Phaser.GameObjects.Text;
+  private pileCollectionText!: Phaser.GameObjects.Text; // NEW: Show slap-to-collect message
   private usingSprites = false;
 
   constructor() {
@@ -149,28 +150,39 @@ export class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
+    // NEW: Pile collection indicator
+    this.pileCollectionText = this.add.text(centerX, centerY - 100, '', {
+      fontSize: '24px',
+      color: COLORS.GREEN,
+      fontStyle: 'bold',
+      stroke: COLORS.BLACK,
+      strokeThickness: 3
+    }).setOrigin(0.5);
+
     // Controls reminder
     const controlsReminder = this.add.text(
-      centerX, 
-      this.cameras.main.height - 30, 
-      'Player 1: Q=Play, A=Slap | Player 2: P=Play, L=Slap | ESC=Menu', {
-      fontSize: '14px',
-      color: COLORS.WHITE
-    }).setOrigin(0.5);
+      50,
+      this.cameras.main.height - 50,
+      'Player 1: Q=Play, A=Slap | Player 2: P=Play, L=Slap | ESC=Menu',
+      {
+        fontSize: '14px',
+        color: COLORS.WHITE
+      }
+    );
     controlsReminder.setAlpha(0.7);
 
     // Player labels
-    this.add.text(player1X, this.cameras.main.height - 240, 'PLAYER 1', {
+    this.add.text(100, this.cameras.main.height - 200, 'PLAYER 1', {
       fontSize: '18px',
       color: COLORS.GOLD,
       fontStyle: 'bold'
-    }).setOrigin(0.5);
+    });
 
-    this.add.text(player2X, 70, 'PLAYER 2', {
+    this.add.text(this.cameras.main.width - 100, 70, 'PLAYER 2', {
       fontSize: '18px',
       color: COLORS.GOLD,
       fontStyle: 'bold'
-    }).setOrigin(0.5);
+    }).setOrigin(1, 0);
   }
 
   private createCardDisplay(x: number, y: number, card: Card | null): Phaser.GameObjects.Sprite | Phaser.GameObjects.Container {
@@ -190,11 +202,9 @@ export class GameScene extends Phaser.Scene {
       return container;
     }
 
-    // Card background
     const bg = this.add.rectangle(0, 0, CARD_WIDTH * CARD_SCALE, CARD_HEIGHT * CARD_SCALE, 0xffffff);
     bg.setStrokeStyle(2, 0x000000);
 
-    // Card text
     const text = this.add.text(0, 0, card.display, {
       fontSize: '24px',
       color: card.color === 'red' ? '#ff0000' : '#000000',
@@ -251,16 +261,13 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  // ✅ FIXED: Changed order - now animation happens BEFORE updating display
   private playCard(player: Player): void {
     if (this.game_logic.playCard(player)) {
       // Show animation with the card that was just played
       this.showPlayCardAnimation(player);
       
-      // Update display counts and other UI immediately (but not center card yet)
+      // Update display (counts and other UI immediately, center card after animation)
       this.updateDisplayWithoutCenterCard();
-      
-      // The center card will be updated when animation completes
     }
   }
 
@@ -279,6 +286,25 @@ export class GameScene extends Phaser.Scene {
 
     // Update status
     this.statusText.setText(this.game_logic.getGameStatusMessage());
+
+    // NEW: Update pile collection indicator
+    if (this.game_logic.pileAwaitingCollection && this.game_logic.pileWinner) {
+      this.pileCollectionText.setText(`Player ${this.game_logic.pileWinner}: SLAP TO COLLECT!`);
+      this.pileCollectionText.setVisible(true);
+      
+      // Add pulsing animation
+      this.tweens.add({
+        targets: this.pileCollectionText,
+        scale: 1.1,
+        duration: 500,
+        yoyo: true,
+        repeat: -1
+      });
+    } else {
+      this.pileCollectionText.setVisible(false);
+      this.tweens.killTweensOf(this.pileCollectionText);
+      this.pileCollectionText.setScale(1);
+    }
 
     // Update turn indicator
     if (this.game_logic.gameState === GameState.PLAYING) {
@@ -314,6 +340,27 @@ export class GameScene extends Phaser.Scene {
 
     // Update status
     this.statusText.setText(this.game_logic.getGameStatusMessage());
+
+    // NEW: Update pile collection indicator
+    if (this.game_logic.pileAwaitingCollection && this.game_logic.pileWinner) {
+      this.pileCollectionText.setText(`Player ${this.game_logic.pileWinner}: SLAP TO COLLECT!`);
+      this.pileCollectionText.setVisible(true);
+      
+      // Add pulsing animation if not already running
+      if (!this.tweens.getTweensOf(this.pileCollectionText).length) {
+        this.tweens.add({
+          targets: this.pileCollectionText,
+          scale: 1.1,
+          duration: 500,
+          yoyo: true,
+          repeat: -1
+        });
+      }
+    } else {
+      this.pileCollectionText.setVisible(false);
+      this.tweens.killTweensOf(this.pileCollectionText);
+      this.pileCollectionText.setScale(1);
+    }
 
     // Update turn indicator
     if (this.game_logic.gameState === GameState.PLAYING) {
