@@ -59,6 +59,10 @@ export class GameScene extends Phaser.Scene {
   private createPlayingAreas(): void {
     const centerX = this.cameras.main.centerX;
     const centerY = this.cameras.main.centerY;
+    
+    // FIXED: Calculate positions closer to center for decks
+    const player1X = 180; // Moved from 100 toward center
+    const player2X = this.cameras.main.width - 180; // Moved from width-100 toward center
 
     // Center pile area
     const graphics = this.add.graphics();
@@ -71,19 +75,19 @@ export class GameScene extends Phaser.Scene {
       5
     );
 
-    // Player 1 area (bottom)
+    // Player 1 area (bottom) - FIXED: Updated to match new deck position
     graphics.strokeRoundedRect(
-      100 - 10,
-      this.cameras.main.height - 150 - 10,
+      player1X - (CARD_WIDTH * CARD_SCALE) / 2 - 10,
+      this.cameras.main.height - 150 - (CARD_HEIGHT * CARD_SCALE) / 2 - 10,
       CARD_WIDTH * CARD_SCALE + 20,
       CARD_HEIGHT * CARD_SCALE + 20,
       5
     );
 
-    // Player 2 area (top)
+    // Player 2 area (top) - FIXED: Updated to match new deck position
     graphics.strokeRoundedRect(
-      this.cameras.main.width - 100 - CARD_WIDTH * CARD_SCALE - 10,
-      100 - 10,
+      player2X - (CARD_WIDTH * CARD_SCALE) / 2 - 10,
+      150 - (CARD_HEIGHT * CARD_SCALE) / 2 - 10,
       CARD_WIDTH * CARD_SCALE + 20,
       CARD_HEIGHT * CARD_SCALE + 20,
       5
@@ -97,26 +101,30 @@ export class GameScene extends Phaser.Scene {
   private createUI(): void {
     const centerX = this.cameras.main.centerX;
     const centerY = this.cameras.main.centerY;
+    
+    // FIXED: Calculate deck positions closer to center
+    const player1X = 180; // Moved from 100 toward center
+    const player2X = this.cameras.main.width - 180; // Moved from width-100 toward center
 
     // Center pile
     this.centerCardSprite = this.createCardDisplay(centerX, centerY, null);
 
-    // Player decks (face down)
-    this.player1DeckSprite = this.createDeckBack(100, this.cameras.main.height - 150);
-    this.player2DeckSprite = this.createDeckBack(this.cameras.main.width - 100, 100);
+    // Player decks (face down) - FIXED: Using new positions
+    this.player1DeckSprite = this.createDeckBack(player1X, this.cameras.main.height - 150);
+    this.player2DeckSprite = this.createDeckBack(player2X, 150);
 
-    // Card counts
-    this.player1CountText = this.add.text(100, this.cameras.main.height - 50, '', {
+    // Card counts - FIXED: Updated to match new deck positions
+    this.player1CountText = this.add.text(player1X, this.cameras.main.height - 50, '', {
       fontSize: '24px',
       color: COLORS.WHITE,
       fontStyle: 'bold'
-    });
+    }).setOrigin(0.5, 1);
 
-    this.player2CountText = this.add.text(this.cameras.main.width - 100, 50, '', {
+    this.player2CountText = this.add.text(player2X, 100, '', {
       fontSize: '24px',
       color: COLORS.WHITE,
       fontStyle: 'bold'
-    }).setOrigin(1, 0);
+    }).setOrigin(0.5, -5);
 
     this.centerCountText = this.add.text(centerX, centerY + 120, '', {
       fontSize: '20px',
@@ -143,26 +151,28 @@ export class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    // Controls reminder - Moved higher to avoid cutoff
-    const controlsReminder = this.add.text(50, this.cameras.main.height - 50, 
+    // Controls reminder - FIXED: Centered at bottom instead of bottom-left
+    const controlsReminder = this.add.text(
+      centerX, 
+      this.cameras.main.height - 30, 
       'Player 1: Q=Play, A=Slap | Player 2: P=Play, L=Slap | ESC=Menu', {
-      fontSize: '14px', // Smaller font
+      fontSize: '14px',
       color: COLORS.WHITE
-    });
+    }).setOrigin(0.5); // FIXED: Now centered
     controlsReminder.setAlpha(0.7);
 
-    // Player labels
-    this.add.text(100, this.cameras.main.height - 200, 'PLAYER 1', { // Moved higher
+    // Player labels - FIXED: Updated positions
+    this.add.text(player1X, this.cameras.main.height - 240, 'PLAYER 1', {
       fontSize: '18px',
       color: COLORS.GOLD,
       fontStyle: 'bold'
-    });
+    }).setOrigin(0.5);
 
-    this.add.text(this.cameras.main.width - 100, 70, 'PLAYER 2', {
+    this.add.text(player2X, 70, 'PLAYER 2', {
       fontSize: '18px',
       color: COLORS.GOLD,
       fontStyle: 'bold'
-    }).setOrigin(1, 0);
+    }).setOrigin(0.5);
   }
 
   private createCardDisplay(x: number, y: number, card: Card | null): Phaser.GameObjects.Sprite | Phaser.GameObjects.Container {
@@ -291,92 +301,55 @@ export class GameScene extends Phaser.Scene {
     this.player2DeckSprite.setVisible(this.game_logic.player2Count > 0);
   }
 
-  // IMPROVED VERSION: Consistent card size throughout animation
+  // FIXED: Updated animation start positions for new deck locations
   private showPlayCardAnimation(player: Player): void {
-    const startX = player === 1 ? 100 : this.cameras.main.width - 100;
-    const startY = player === 1 ? this.cameras.main.height - 150 : 100;
+    const player1X = 180;
+    const player2X = this.cameras.main.width - 180;
+    
+    const startX = player === 1 ? player1X : player2X;
+    const startY = player === 1 ? this.cameras.main.height - 150 : 150;
     const endX = this.cameras.main.centerX;
     const endY = this.cameras.main.centerY;
 
-    // Get the card that was just played (top card on center pile)
-    const cardBeingPlayed = this.game_logic.topCard;
-    
-    if (!cardBeingPlayed) {
-      // Fallback to blank card if no card found
-      const animCard = this.add.rectangle(startX, startY, CARD_WIDTH * CARD_SCALE, CARD_HEIGHT * CARD_SCALE, 0xffffff);
-      animCard.setStrokeStyle(2, 0x000000);
-      
-      this.tweens.add({
-        targets: animCard,
-        x: endX,
-        y: endY,
-        duration: 300,
-        ease: 'Power2',
-        onComplete: () => {
-          animCard.destroy();
-        }
-      });
-      return;
-    }
+    // Create temporary card sprite for animation
+    const card = this.game_logic.topCard;
+    if (!card) return;
 
-    // Create animated card display showing the actual card at consistent size
-    const animatedCardDisplay = this.createCardDisplay(startX, startY, cardBeingPlayed);
+    const animCard = this.createCardDisplay(startX, startY, card);
     
-    // Set depth to ensure it renders on top
-    animatedCardDisplay.setDepth(100);
-    
-    // Animate the card WITHOUT changing scale - maintains consistent size
+    // Animate to center
     this.tweens.add({
-      targets: animatedCardDisplay,
+      targets: animCard,
       x: endX,
       y: endY,
       duration: 300,
       ease: 'Power2',
       onComplete: () => {
-        animatedCardDisplay.destroy();
+        animCard.destroy();
       }
     });
   }
 
   private showSlapFeedback(player: Player, success: boolean): void {
-    // Camera shake for impact
-    this.cameras.main.shake(200, 0.01);
+    const centerX = this.cameras.main.centerX;
+    const centerY = this.cameras.main.centerY;
 
-    // Flash effect
-    const flash = this.add.rectangle(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY,
-      this.cameras.main.width,
-      this.cameras.main.height,
-      success ? 0x00ff00 : 0xff0000,
-      0.3
-    );
-
-    this.tweens.add({
-      targets: flash,
-      alpha: 0,
-      duration: 200,
-      onComplete: () => {
-        flash.destroy();
-      }
-    });
-
-    // Feedback text
     const feedbackText = this.add.text(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY - 50,
-      success ? 'SLAP SUCCESS!' : 'MISSED!',
+      centerX,
+      centerY - 100,
+      success ? '✓ SLAP!' : '✗ MISS!',
       {
-        fontSize: '36px',
-        color: success ? COLORS.GREEN : COLORS.RED,
+        fontSize: '48px',
+        color: success ? COLORS.GOLD : COLORS.RED,
         fontStyle: 'bold'
       }
     ).setOrigin(0.5);
 
+    // Animate feedback
     this.tweens.add({
       targets: feedbackText,
       alpha: 0,
-      scale: 1.5,
+      y: centerY - 150,
       duration: 1000,
       ease: 'Power2',
       onComplete: () => {
@@ -386,20 +359,27 @@ export class GameScene extends Phaser.Scene {
   }
 
   private showWinScreen(): void {
-    // Overlay
+    const centerX = this.cameras.main.centerX;
+    const centerY = this.cameras.main.centerY;
+
+    // Semi-transparent overlay
     const overlay = this.add.rectangle(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY,
+      centerX,
+      centerY,
       this.cameras.main.width,
       this.cameras.main.height,
       0x000000,
-      0.8
+      0.7
     );
 
-    // Win text
-    const winText = this.add.text(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY - 50,
+    // Win panel
+    const panel = this.add.rectangle(centerX, centerY, 600, 400, 0x1a1a1a);
+    panel.setStrokeStyle(5, 0xffd700);
+
+    // Winner text
+    const winnerText = this.add.text(
+      centerX,
+      centerY - 80,
       `PLAYER ${this.game_logic.winner} WINS!`,
       {
         fontSize: '48px',
@@ -408,24 +388,35 @@ export class GameScene extends Phaser.Scene {
       }
     ).setOrigin(0.5);
 
-    // Continue instruction
-    const continueText = this.add.text(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY + 50,
-      'Press SPACE to play again or ESC for menu',
+    // Trophy
+    const trophy = this.add.text(centerX, centerY, '🏆', {
+      fontSize: '96px'
+    }).setOrigin(0.5);
+
+    // Instructions
+    const instructionsText = this.add.text(
+      centerX,
+      centerY + 100,
+      'Press ESC to return to menu',
       {
-        fontSize: '20px',
+        fontSize: '24px',
         color: COLORS.WHITE
       }
     ).setOrigin(0.5);
 
-    // Handle restart
-    this.input.keyboard?.on('keydown-SPACE', () => {
-      this.scene.restart();
+    // Animate in
+    this.tweens.add({
+      targets: [overlay, panel, winnerText, trophy, instructionsText],
+      alpha: { from: 0, to: 1 },
+      duration: 500,
+      ease: 'Power2'
     });
   }
 
   private returnToMenu(): void {
-    this.scene.start(SCENE_KEYS.MENU);
+    this.cameras.main.fadeOut(500, 0, 0, 0);
+    this.cameras.main.once('camerafadeoutcomplete', () => {
+      this.scene.start(SCENE_KEYS.MENU);
+    });
   }
 }
