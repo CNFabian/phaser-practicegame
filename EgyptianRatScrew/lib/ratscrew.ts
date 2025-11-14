@@ -5,100 +5,61 @@ export class RatScrew {
   private _player1Deck: Card[] = [];
   private _player2Deck: Card[] = [];
   private _centerPile: Card[] = [];
-  private _gameState: GameState = GameState.PLAYING;
+  private _bonusPile: Card[] = []; // Separate bonus pile for missed slaps
   private _currentPlayer: Player = 1;
+  private _gameState: GameState = GameState.PLAYING;
   private _challengePlayer: Player | null = null;
   private _challengeRemaining: number = 0;
   private _events: GameEvent[] = [];
-  private _pileAwaitingCollection: boolean = false; // NEW: Track if pile needs to be slapped to collect
-  private _pileWinner: Player | null = null; // NEW: Track who won the pile
+  
+  // Pile collection state
+  private _pileAwaitingCollection: boolean = false;
+  private _pileWinner: Player | null = null;
 
   constructor() {
     this.initializeGame();
   }
 
-  // Getters
-  get player1Deck(): readonly Card[] {
-    return this._player1Deck;
-  }
-
-  get player2Deck(): readonly Card[] {
-    return this._player2Deck;
-  }
-
-  get centerPile(): readonly Card[] {
-    return this._centerPile;
-  }
-
+  // Public getters
+  get player1Count(): number { return this._player1Deck.length; }
+  get player2Count(): number { return this._player2Deck.length; }
+  get centerCount(): number { return this._centerPile.length; }
+  get bonusCount(): number { return this._bonusPile.length; }
+  get currentPlayer(): Player { return this._currentPlayer; }
+  get gameState(): GameState { return this._gameState; }
+  get challengePlayer(): Player | null { return this._challengePlayer; }
+  get challengeRemaining(): number { return this._challengeRemaining; }
   get topCard(): Card | null {
     return this._centerPile.length > 0 ? this._centerPile[this._centerPile.length - 1] : null;
   }
-
-  get gameState(): GameState {
-    return this._gameState;
-  }
-
-  get currentPlayer(): Player {
-    return this._currentPlayer;
-  }
-
-  get challengePlayer(): Player | null {
-    return this._challengePlayer;
-  }
-
-  get challengeRemaining(): number {
-    return this._challengeRemaining;
-  }
-
-  get player1Count(): number {
-    return this._player1Deck.length;
-  }
-
-  get player2Count(): number {
-    return this._player2Deck.length;
-  }
-
-  get centerCount(): number {
-    return this._centerPile.length;
-  }
-
+  get events(): readonly GameEvent[] { return this._events; }
   get winner(): Player | null {
-    if (this._player1Deck.length === 0 && this._player2Deck.length === 0) {
-      return null;
-    }
     if (this._player1Deck.length === 52) return 1;
     if (this._player2Deck.length === 52) return 2;
-    if (this._player1Deck.length === 0) return 2;
-    if (this._player2Deck.length === 0) return 1;
     return null;
   }
+  get pileAwaitingCollection(): boolean { return this._pileAwaitingCollection; }
+  get pileWinner(): Player | null { return this._pileWinner; }
 
-  get events(): readonly GameEvent[] {
-    return this._events;
-  }
+  // Initialize game
+  initializeGame(): void {
+    // Create and shuffle deck
+    const fullDeck = Card.createDeck();
+    Card.shuffle(fullDeck);
 
-  get pileAwaitingCollection(): boolean {
-    return this._pileAwaitingCollection;
-  }
-
-  get pileWinner(): Player | null {
-    return this._pileWinner;
-  }
-
-  // Game initialization
-  private initializeGame(): void {
-    const deck = Card.shuffleDeck(Card.createDeck());
-    
-    this._player1Deck = deck.slice(0, 26);
-    this._player2Deck = deck.slice(26, 52);
+    // Deal cards
+    this._player1Deck = fullDeck.slice(0, 26);
+    this._player2Deck = fullDeck.slice(26, 52);
     this._centerPile = [];
-    this._gameState = GameState.PLAYING;
+    this._bonusPile = [];
     this._currentPlayer = 1;
+    this._gameState = GameState.PLAYING;
     this._challengePlayer = null;
     this._challengeRemaining = 0;
     this._pileAwaitingCollection = false;
     this._pileWinner = null;
-    
+    this._events = [];
+
     this.addEvent({
       type: 'card_played',
       player: 1,
@@ -108,34 +69,15 @@ export class RatScrew {
 
   // Main game actions
   playCard(player: Player): boolean {
-    if (this._gameState === GameState.GAME_OVER) {
+    if (!this.canPlayerPlay(player)) {
       return false;
     }
 
-    // Can't play if a pile is awaiting collection
-    if (this._pileAwaitingCollection) {
-      return false;
-    }
-
-    // Check if it's the player's turn (unless in challenge mode)
-    if (this._gameState === GameState.PLAYING && player !== this._currentPlayer) {
-      return false;
-    }
-
-    if (this._gameState === GameState.CHALLENGE && player !== this._challengePlayer) {
-      return false;
-    }
-
-    // Get the player's deck
     const playerDeck = player === 1 ? this._player1Deck : this._player2Deck;
-    
     if (playerDeck.length === 0) {
-      // Player has no cards - check for game over
-      this.checkGameOver();
       return false;
     }
 
-    // Play the top card
     const card = playerDeck.shift()!;
     this._centerPile.push(card);
 
@@ -145,21 +87,46 @@ export class RatScrew {
       message: `Player ${player} played ${card.display}`
     });
 
-    // Handle face card logic
+    // CRITICAL: Check for slappable condition BEFORE processing challenge logic
+    // This allows doubles/sandwiches to override challenge outcomes
+    const slappableCondition = this.getSlappableCondition();
+    if (slappableCondition !== 'none') {
+      // There's a slappable condition! Alert players
+      this.addEvent({
+        type: 'slap_attempt',
+        player,
+        message: `${slappableCondition.toUpperCase()} - SLAP NOW!`
+      });
+      
+      // If we're in a challenge, pause it - the slap takes priority
+      if (this._gameState === GameState.CHALLENGE) {
+        this.addEvent({
+          type: 'challenge_started',
+          player: this._challengePlayer!,
+          message: `Challenge paused! ${slappableCondition} detected - race to slap!`
+        });
+      }
+      
+      // Don't process challenge logic or change state
+      // Wait for someone to slap (or miss the opportunity)
+      return true;
+    }
+
+    // No slappable condition - process normal game flow
     if (card.isFaceCard) {
+      // Start a challenge
       this.startChallenge(player === 1 ? 2 : 1, card.challengeCount);
     } else if (this._gameState === GameState.CHALLENGE) {
       // Non-face card during challenge
       this._challengeRemaining--;
       if (this._challengeRemaining <= 0) {
-        // Challenge failed - original player wins (but must slap to collect)
+        // Challenge failed - opponent wins
         this.endChallenge(false);
       } else {
-        // Continue challenge
         this.addEvent({
           type: 'challenge_started',
           player: this._challengePlayer!,
-          message: `Challenge continues. ${this._challengeRemaining} chances left.`
+          message: `Challenge continues. Player ${this._challengePlayer} has ${this._challengeRemaining} chances left.`
         });
       }
     } else {
@@ -179,7 +146,7 @@ export class RatScrew {
       return false;
     }
 
-    // NEW: Check if this is a slap to collect a won pile
+    // Check if this is a slap to collect a won pile
     if (this._pileAwaitingCollection) {
       if (player === this._pileWinner) {
         // Correct player slapping to collect their won pile
@@ -194,29 +161,45 @@ export class RatScrew {
     // Need at least 2 cards to slap for doubles (or 3 for sandwiches)
     if (this._centerPile.length < 2) {
       // Silently ignore slaps when there aren't enough cards
-      // This prevents penalties for spam clicking before cards are played
       return false;
     }
 
     const condition = this.getSlappableCondition();
     
     if (condition !== 'none') {
-      // Valid slap - player wins the pile (but must slap again to collect)
+      // Valid slap - ANY player can win the pile
+      // This includes slapping during challenges!
       this.setPileWinner(player);
-      this.addEvent({
-        type: 'slap_attempt',
-        player,
-        condition,
-        message: `Player ${player} slapped successfully! (${condition}) - Slap again to collect!`
-      });
+      
+      // If we were in a challenge, end it now
+      if (this._gameState === GameState.CHALLENGE) {
+        this.addEvent({
+          type: 'slap_attempt',
+          player,
+          condition,
+          message: `Player ${player} slapped ${condition} during challenge! Challenge cancelled - Slap again to collect!`
+        });
+        // Reset challenge state
+        this._gameState = GameState.PLAYING;
+        this._challengePlayer = null;
+        this._challengeRemaining = 0;
+      } else {
+        this.addEvent({
+          type: 'slap_attempt',
+          player,
+          condition,
+          message: `Player ${player} slapped successfully! (${condition}) - Slap again to collect!`
+        });
+      }
+      
       return true;
     } else {
-      // Invalid slap - penalty
+      // Invalid slap - add penalty to BONUS pile
       this.penalizePlayer(player);
       this.addEvent({
         type: 'slap_attempt',
         player,
-        message: `Player ${player} slapped incorrectly! Lost one card.`
+        message: `Player ${player} slapped incorrectly! Lost one card to bonus pile.`
       });
       return false;
     }
@@ -274,7 +257,20 @@ export class RatScrew {
     
     // Add all center cards to bottom of player's deck
     playerDeck.push(...this._centerPile);
+    
+    // Also add all bonus pile cards to winner's deck
+    const bonusCount = this._bonusPile.length;
+    if (bonusCount > 0) {
+      playerDeck.push(...this._bonusPile);
+      this.addEvent({
+        type: 'pile_won',
+        player,
+        message: `Player ${player} also gets ${bonusCount} bonus card${bonusCount > 1 ? 's' : ''}!`
+      });
+    }
+    
     this._centerPile = [];
+    this._bonusPile = [];
     
     // Reset pile collection state
     this._pileAwaitingCollection = false;
@@ -284,10 +280,11 @@ export class RatScrew {
     this._currentPlayer = player;
     this._gameState = GameState.PLAYING;
     
+    const totalCards = playerDeck.length;
     this.addEvent({
       type: 'pile_won',
       player,
-      message: `Player ${player} collected the pile! (${playerDeck.length} cards total)`
+      message: `Player ${player} collected the pile! (${totalCards} cards total)`
     });
 
     // Check for game over
@@ -299,13 +296,13 @@ export class RatScrew {
     
     if (playerDeck.length > 0) {
       const card = playerDeck.shift()!;
-      // Add penalty card to TOP of center pile so it becomes visible
-      this._centerPile.push(card);
+      // Add penalty card to BONUS pile instead of center pile
+      this._bonusPile.push(card);
       
       this.addEvent({
         type: 'slap_attempt',
         player,
-        message: `Player ${player} penalized: ${card.display} added to center pile.`
+        message: `Player ${player} penalized: ${card.display} added to bonus pile (${this._bonusPile.length} cards).`
       });
     } else {
       // Player has no cards to penalize
@@ -367,7 +364,7 @@ export class RatScrew {
       this.addEvent({
         type: 'game_over',
         player: winner,
-        message: `Game Over! Player ${winner} wins!`
+        message: `Game Over! Player ${winner} wins with all 52 cards!`
       });
     }
   }
