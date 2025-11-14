@@ -24,18 +24,10 @@ const config: Phaser.Types.Core.GameConfig = {
     }
   },
   
-  // Scaling and display options
+  // MINIMAL SCALING CONFIGURATION - prevents duplication
   scale: {
-    mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
-    min: {
-      width: 800,
-      height: 600
-    },
-    max: {
-      width: 1600,
-      height: 1200
-    }
+    mode: Phaser.Scale.NONE, // No automatic scaling to prevent duplication
+    autoCenter: Phaser.Scale.NO_CENTER, // No auto-centering
   },
   
   // Input configuration
@@ -61,6 +53,30 @@ const config: Phaser.Types.Core.GameConfig = {
   disableContextMenu: true
 };
 
+// Custom scaling function
+function scaleCanvas(canvas: HTMLCanvasElement, container: HTMLElement) {
+  const containerRect = container.getBoundingClientRect();
+  const aspectRatio = GAME_WIDTH / GAME_HEIGHT;
+  
+  let newWidth = containerRect.width;
+  let newHeight = containerRect.height;
+  
+  // Maintain aspect ratio
+  if (newWidth / newHeight > aspectRatio) {
+    newWidth = newHeight * aspectRatio;
+  } else {
+    newHeight = newWidth / aspectRatio;
+  }
+  
+  // Apply new dimensions
+  canvas.style.width = `${newWidth}px`;
+  canvas.style.height = `${newHeight}px`;
+  canvas.style.position = 'absolute';
+  canvas.style.top = '50%';
+  canvas.style.left = '50%';
+  canvas.style.transform = 'translate(-50%, -50%)';
+}
+
 // Initialize the game
 function initializeGame(): Phaser.Game | null {
   try {
@@ -73,26 +89,62 @@ function initializeGame(): Phaser.Game | null {
       loadingElement.remove();
     }
     
-    // Create and start the game
+    // Clean up any existing game instances
+    if (window.game) {
+      console.log('Destroying existing game instance...');
+      window.game.destroy(true);
+      window.game = null;
+    }
+    
+    // Clear container and ensure single canvas
+    const container = document.getElementById('game-container');
+    if (container) {
+      // Remove any existing canvases
+      const existingCanvases = container.querySelectorAll('canvas');
+      existingCanvases.forEach(canvas => canvas.remove());
+      
+      // Set container styling
+      container.style.width = '100%';
+      container.style.height = '100vh';
+      container.style.position = 'relative';
+      container.style.overflow = 'hidden';
+      container.style.backgroundColor = COLORS.BACKGROUND;
+    }
+    
+    // Create the game
     const game = new Phaser.Game(config);
     
-    // Store game reference globally for debugging
+    // Store game reference globally
     window.game = game;
+    
+    // Wait for game to be ready, then set up custom scaling
+    game.events.once('ready', () => {
+      const canvas = game.canvas;
+      const container = document.getElementById('game-container');
+      
+      if (canvas && container) {
+        // Apply custom scaling
+        scaleCanvas(canvas, container);
+        
+        // Handle resize events
+        let resizeTimeout: NodeJS.Timeout;
+        window.addEventListener('resize', () => {
+          clearTimeout(resizeTimeout);
+          resizeTimeout = setTimeout(() => {
+            if (canvas && container) {
+              scaleCanvas(canvas, container);
+            }
+          }, 100);
+        });
+      }
+    });
     
     // Global error handling
     window.addEventListener('error', (event) => {
       console.error('Game error:', event.error);
     });
     
-    // Handle window resize
-    window.addEventListener('resize', () => {
-      if (game && game.scale) {
-        game.scale.refresh();
-      }
-    });
-    
     console.log('Egyptian Ratscrew game initialized successfully');
-    console.log('Available scenes: PreloadScene, MenuScene, GameScene');
     
     return game;
   } catch (error) {
@@ -103,7 +155,7 @@ function initializeGame(): Phaser.Game | null {
     if (container) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       container.innerHTML = `
-        <div style="color: #ff0000; text-align: center; padding: 50px;">
+        <div style="color: #ff0000; text-align: center; padding: 50px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
           <h2>Game Failed to Load</h2>
           <p>Error: ${errorMessage}</p>
           <p>Please check the console for more details.</p>
@@ -115,27 +167,30 @@ function initializeGame(): Phaser.Game | null {
   }
 }
 
-// Wait for DOM to be ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    initializeGame();
-  });
-} else {
+// Prevent multiple initializations
+let gameInitialized = false;
+
+function safeInitializeGame() {
+  if (gameInitialized) {
+    console.log('Game already initialized, skipping...');
+    return;
+  }
+  
+  gameInitialized = true;
   initializeGame();
 }
 
-// Also listen for window load as backup
-window.addEventListener('load', () => {
-  // Only initialize if game hasn't been created yet
-  if (!window.game) {
-    initializeGame();
-  }
-});
+// Wait for DOM to be ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', safeInitializeGame);
+} else {
+  safeInitializeGame();
+}
 
 // Export the game instance for debugging purposes
 declare global {
   interface Window {
-    game: Phaser.Game;
+    game: Phaser.Game | null;
   }
 }
 

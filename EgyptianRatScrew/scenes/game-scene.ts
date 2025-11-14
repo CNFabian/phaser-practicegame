@@ -143,16 +143,16 @@ export class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    // Controls reminder - Fixed alpha issue by setting it separately
-    const controlsReminder = this.add.text(50, this.cameras.main.height - 30, 
+    // Controls reminder - Moved higher to avoid cutoff
+    const controlsReminder = this.add.text(50, this.cameras.main.height - 50, 
       'Player 1: Q=Play, A=Slap | Player 2: P=Play, L=Slap | ESC=Menu', {
-      fontSize: '16px',
+      fontSize: '14px', // Smaller font
       color: COLORS.WHITE
     });
-    controlsReminder.setAlpha(0.7); // Set alpha separately instead of in TextStyle
+    controlsReminder.setAlpha(0.7);
 
     // Player labels
-    this.add.text(100, this.cameras.main.height - 180, 'PLAYER 1', {
+    this.add.text(100, this.cameras.main.height - 200, 'PLAYER 1', { // Moved higher
       fontSize: '18px',
       color: COLORS.GOLD,
       fontStyle: 'bold'
@@ -291,30 +291,59 @@ export class GameScene extends Phaser.Scene {
     this.player2DeckSprite.setVisible(this.game_logic.player2Count > 0);
   }
 
+  // IMPROVED VERSION: Show actual card value during animation transition
   private showPlayCardAnimation(player: Player): void {
-    // Simple card play animation
     const startX = player === 1 ? 100 : this.cameras.main.width - 100;
     const startY = player === 1 ? this.cameras.main.height - 150 : 100;
     const endX = this.cameras.main.centerX;
     const endY = this.cameras.main.centerY;
 
-    const animCard = this.add.rectangle(startX, startY, CARD_WIDTH * CARD_SCALE, CARD_HEIGHT * CARD_SCALE, 0xffffff);
-    animCard.setStrokeStyle(2, 0x000000);
+    // Get the card that was just played (top card on center pile)
+    const cardBeingPlayed = this.game_logic.topCard;
+    
+    if (!cardBeingPlayed) {
+      // Fallback to blank card if no card found
+      const animCard = this.add.rectangle(startX, startY, CARD_WIDTH * CARD_SCALE, CARD_HEIGHT * CARD_SCALE, 0xffffff);
+      animCard.setStrokeStyle(2, 0x000000);
+      
+      this.tweens.add({
+        targets: animCard,
+        x: endX,
+        y: endY,
+        duration: 300,
+        ease: 'Power2',
+        onComplete: () => {
+          animCard.destroy();
+        }
+      });
+      return;
+    }
 
+    // Create animated card display showing the actual card
+    const animatedCardDisplay = this.createCardDisplay(startX, startY, cardBeingPlayed);
+    
+    // Add a slight scale effect to make it more visible during animation
+    animatedCardDisplay.setScale(CARD_SCALE * 1.1);
+    
+    // Set depth to ensure it renders on top
+    animatedCardDisplay.setDepth(100);
+    
+    // Animate the card with the value visible
     this.tweens.add({
-      targets: animCard,
+      targets: animatedCardDisplay,
       x: endX,
       y: endY,
+      scale: CARD_SCALE, // Scale back to normal size at destination
       duration: 300,
       ease: 'Power2',
       onComplete: () => {
-        animCard.destroy();
+        animatedCardDisplay.destroy();
       }
     });
   }
 
   private showSlapFeedback(player: Player, success: boolean): void {
-    // Screen shake effect
+    // Camera shake for impact
     this.cameras.main.shake(200, 0.01);
 
     // Flash effect
@@ -336,60 +365,46 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    // Slap text
-    const slapText = this.add.text(
+    // Feedback text
+    const feedbackText = this.add.text(
       this.cameras.main.centerX,
-      this.cameras.main.centerY - 100,
-      success ? 'GOOD SLAP!' : 'BAD SLAP!',
+      this.cameras.main.centerY - 50,
+      success ? 'SLAP SUCCESS!' : 'MISSED!',
       {
         fontSize: '36px',
         color: success ? COLORS.GREEN : COLORS.RED,
-        fontStyle: 'bold',
-        stroke: COLORS.BLACK,
-        strokeThickness: 3
+        fontStyle: 'bold'
       }
-    ).setOrigin(0.5).setAlpha(0);
+    ).setOrigin(0.5);
 
     this.tweens.add({
-      targets: slapText,
-      alpha: 1,
-      y: slapText.y - 50,
-      duration: 200,
-      yoyo: true,
+      targets: feedbackText,
+      y: feedbackText.y - 50,
+      alpha: 0,
+      duration: 1000,
+      ease: 'Power2',
       onComplete: () => {
-        slapText.destroy();
+        feedbackText.destroy();
       }
     });
   }
 
   private showWinScreen(): void {
-    const winner = this.game_logic.winner!;
-    
-    // Semi-transparent overlay
+    // Create semi-transparent overlay
     const overlay = this.add.rectangle(
       this.cameras.main.centerX,
       this.cameras.main.centerY,
       this.cameras.main.width,
       this.cameras.main.height,
       0x000000,
-      0.7
+      0.8
     );
 
-    // Win panel
-    const panel = this.add.rectangle(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY,
-      500,
-      300,
-      0x1a1a1a
-    );
-    panel.setStrokeStyle(5, 0xffd700);
-
-    // Win text
-    this.add.text(
+    // Win message
+    const winText = this.add.text(
       this.cameras.main.centerX,
       this.cameras.main.centerY - 50,
-      `PLAYER ${winner} WINS!`,
+      `🏆 PLAYER ${this.game_logic.winner} WINS! 🏆`,
       {
         fontSize: '48px',
         color: COLORS.GOLD,
@@ -397,41 +412,36 @@ export class GameScene extends Phaser.Scene {
       }
     ).setOrigin(0.5);
 
-    this.add.text(
+    // Instructions
+    const instructionsText = this.add.text(
       this.cameras.main.centerX,
-      this.cameras.main.centerY + 20,
-      'Collected all 52 cards!',
+      this.cameras.main.centerY + 50,
+      'Press ESC to return to menu',
       {
         fontSize: '24px',
         color: COLORS.WHITE
       }
     ).setOrigin(0.5);
 
-    // Play again button
-    const playAgainBtn = this.add.text(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY + 80,
-      'PLAY AGAIN (SPACE)',
-      {
-        fontSize: '20px',
-        color: COLORS.GOLD,
-        fontStyle: 'bold'
-      }
-    ).setOrigin(0.5).setInteractive();
+    // Animate win elements
+    winText.setScale(0);
+    this.tweens.add({
+      targets: winText,
+      scale: 1,
+      duration: 500,
+      ease: 'Back.easeOut'
+    });
 
-    playAgainBtn.on('pointerdown', () => this.restartGame());
-
-    this.input.keyboard?.once('keydown-SPACE', () => this.restartGame());
-  }
-
-  private restartGame(): void {
-    this.scene.restart();
+    instructionsText.setAlpha(0);
+    this.tweens.add({
+      targets: instructionsText,
+      alpha: 1,
+      duration: 1000,
+      delay: 500
+    });
   }
 
   private returnToMenu(): void {
-    this.cameras.main.fadeOut(300, 0, 0, 0);
-    this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start(SCENE_KEYS.MENU);
-    });
+    this.scene.start(SCENE_KEYS.MENU);
   }
 }
