@@ -8,7 +8,8 @@ import {
   CARD_HEIGHT, 
   CARD_SCALE,
   GameState,
-  Player
+  Player,
+  Suit  // ADDED: Import Suit enum for proper type checking
 } from '../common';
 
 export class GameScene extends Phaser.Scene {
@@ -70,8 +71,8 @@ export class GameScene extends Phaser.Scene {
       10
     );
 
-    // Player 1 area (bottom)
-    graphics.lineStyle(4, COLORS.GOLD, 1);
+    // Player 1 area (bottom) - FIX: Convert hex color string to number
+    graphics.lineStyle(4, parseInt(COLORS.GOLD.replace('#', ''), 16), 1);
     graphics.strokeRoundedRect(
       player1X - (CARD_WIDTH * CARD_SCALE) / 2 - 10,
       this.cameras.main.height - 150 - (CARD_HEIGHT * CARD_SCALE) / 2 - 10,
@@ -89,8 +90,8 @@ export class GameScene extends Phaser.Scene {
       5
     );
     
-    // Bonus pile area (to the right of center)
-    graphics.lineStyle(3, COLORS.ORANGE, 1);
+    // Bonus pile area (to the right of center) - FIX: Use fallback color since ORANGE doesn't exist
+    graphics.lineStyle(3, 0xff8c00, 1); // Orange color as hex number
     graphics.strokeRoundedRect(
       centerX + 180 - (CARD_WIDTH * CARD_SCALE) / 2 - 10,
       centerY - (CARD_HEIGHT * CARD_SCALE) / 2 - 10,
@@ -150,10 +151,10 @@ export class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
     
-    // Bonus pile count
+    // Bonus pile count - FIX: Use hex color string instead of COLORS.ORANGE
     this.bonusCountText = this.add.text(centerX + 180, centerY + 80, 'Bonus: 0', {
       fontSize: '18px',
-      color: COLORS.ORANGE,
+      color: '#ff8c00', // Orange color directly as hex string
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
@@ -189,14 +190,14 @@ export class GameScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.pileCollectionText.setVisible(false);
 
-    // Instructions (centered at bottom)
+    // Instructions (centered at bottom) - FIX: Use hex color string instead of COLORS.LIGHT_GRAY
     this.instructionsText = this.add.text(
       centerX,
       this.cameras.main.height - 50,
       'Player 1: Q (Play) | A (Slap)  ||  Player 2: P (Play) | L (Slap)  ||  ESC (Menu)',
       {
         fontSize: '16px',
-        color: COLORS.LIGHT_GRAY,
+        color: '#d3d3d3', // Light gray color directly as hex string
         align: 'center'
       }
     ).setOrigin(0.5);
@@ -240,18 +241,20 @@ export class GameScene extends Phaser.Scene {
       const cardBg = this.add.rectangle(0, 0, CARD_WIDTH * CARD_SCALE, CARD_HEIGHT * CARD_SCALE, 0xffffff);
       cardBg.setStrokeStyle(2, 0x000000);
       
-      const suitColor = (card.suit === 'Hearts' || card.suit === 'Diamonds') ? 0xff0000 : 0x000000;
+      // FIX: Use proper Suit enum comparison instead of string literals
+      const suitColor = (card.suit === Suit.HEARTS || card.suit === Suit.DIAMONDS) ? 0xff0000 : 0x000000;
       const rankText = this.add.text(0, -10, card.displayValue, {
         fontSize: '32px',
         color: `#${suitColor.toString(16).padStart(6, '0')}`,
         fontStyle: 'bold'
       }).setOrigin(0.5);
       
-      const suitSymbols: { [key: string]: string } = {
-        'Hearts': '♥',
-        'Diamonds': '♦',
-        'Clubs': '♣',
-        'Spades': '♠'
+      // FIX: Use proper Suit enum mapping instead of string literals
+      const suitSymbols: { [key in Suit]: string } = {
+        [Suit.HEARTS]: '♥',
+        [Suit.DIAMONDS]: '♦',
+        [Suit.CLUBS]: '♣',
+        [Suit.SPADES]: '♠'
       };
       
       const suitText = this.add.text(0, 15, suitSymbols[card.suit], {

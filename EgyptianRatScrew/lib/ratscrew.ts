@@ -45,7 +45,7 @@ export class RatScrew {
   initializeGame(): void {
     // Create and shuffle deck
     const fullDeck = Card.createDeck();
-    Card.shuffle(fullDeck);
+    const shuffledDeck = Card.shuffleDeck(fullDeck);
 
     // Deal cards
     this._player1Deck = fullDeck.slice(0, 26);
