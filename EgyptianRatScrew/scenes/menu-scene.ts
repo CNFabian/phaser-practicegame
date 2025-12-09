@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { SCENE_KEYS, COLORS } from '../common';
+import { SCENE_KEYS, COLORS, DEFAULT_RULES } from '../common';
 
 export class MenuScene extends Phaser.Scene {
   private startButton!: Phaser.GameObjects.Container;
@@ -20,7 +20,6 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private createBackground(): void {
-    // Create felt-like background
     this.add.rectangle(
       this.cameras.main.centerX,
       this.cameras.main.centerY,
@@ -29,7 +28,6 @@ export class MenuScene extends Phaser.Scene {
       0x0a5f38
     );
 
-    // Add some texture with subtle patterns
     const graphics = this.add.graphics();
     graphics.lineStyle(1, 0x1a8e5a, 0.3);
     
@@ -43,7 +41,6 @@ export class MenuScene extends Phaser.Scene {
   private createTitle(): void {
     const centerX = this.cameras.main.centerX;
     
-    // Main title - removed problematic setPostPipeline
     const title = this.add.text(centerX, 120, 'EGYPTIAN', {
       fontSize: '64px',
       color: COLORS.GOLD,
@@ -60,11 +57,9 @@ export class MenuScene extends Phaser.Scene {
       strokeThickness: 3
     }).setOrigin(0.5);
 
-    // Add alternative glow effect using drop shadow instead of post-pipeline
     title.setShadow(0, 0, COLORS.GOLD, 10, false, true);
     subtitle.setShadow(0, 0, COLORS.GOLD, 10, false, true);
 
-    // Subtitle
     this.add.text(centerX, 240, 'The Fast-Paced Card Slapping Game', {
       fontSize: '24px',
       color: COLORS.WHITE,
@@ -76,18 +71,24 @@ export class MenuScene extends Phaser.Scene {
     const centerX = this.cameras.main.centerX;
     const centerY = this.cameras.main.centerY;
 
-    // Start Game Button
-    this.startButton = this.createButton(centerX, centerY + 50, 'START GAME', () => {
-      this.startGame();
+    // Quick Start Button (with default rules)
+    this.createButton(centerX, centerY + 20, 'QUICK START', () => {
+      this.quickStart();
+    });
+
+    // Configure Rules Button
+    this.createButton(centerX, centerY + 90, 'CONFIGURE RULES', () => {
+      this.scene.start(SCENE_KEYS.RULES);
     });
 
     // Instructions Button
-    const instructionsButton = this.createButton(centerX, centerY + 120, 'HOW TO PLAY', () => {
+    this.createButton(centerX, centerY + 160, 'HOW TO PLAY', () => {
       this.toggleInstructions();
     });
 
     // Controls hint
-    const controlsHint = this.add.text(centerX, this.cameras.main.height - 50, 'Press SPACE to start or ESC for instructions', {
+    const controlsHint = this.add.text(centerX, this.cameras.main.height - 50, 
+      'Press SPACE for Quick Start | ESC for instructions', {
       fontSize: '18px',
       color: COLORS.WHITE
     }).setOrigin(0.5);
@@ -97,11 +98,9 @@ export class MenuScene extends Phaser.Scene {
   private createButton(x: number, y: number, text: string, callback: () => void): Phaser.GameObjects.Container {
     const button = this.add.container(x, y);
 
-    // Button background
-    const bg = this.add.rectangle(0, 0, 300, 60, 0x8B4513);
+    const bg = this.add.rectangle(0, 0, 320, 60, 0x8B4513);
     bg.setStrokeStyle(3, 0xffd700);
     
-    // Button text
     const buttonText = this.add.text(0, 0, text, {
       fontSize: '24px',
       color: COLORS.GOLD,
@@ -109,10 +108,9 @@ export class MenuScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     button.add([bg, buttonText]);
-    button.setSize(300, 60);
+    button.setSize(320, 60);
     button.setInteractive();
 
-    // Hover effects
     button.on('pointerover', () => {
       bg.setFillStyle(0xa0522d);
       button.setScale(1.05);
@@ -138,7 +136,6 @@ export class MenuScene extends Phaser.Scene {
   private createInstructions(): void {
     this.instructionsContainer = this.add.container(0, 0);
     
-    // Semi-transparent background
     const overlay = this.add.rectangle(
       this.cameras.main.centerX,
       this.cameras.main.centerY,
@@ -148,7 +145,6 @@ export class MenuScene extends Phaser.Scene {
       0.8
     );
 
-    // Instructions panel
     const panel = this.add.rectangle(
       this.cameras.main.centerX,
       this.cameras.main.centerY,
@@ -158,7 +154,6 @@ export class MenuScene extends Phaser.Scene {
     );
     panel.setStrokeStyle(3, 0xffd700);
 
-    // Instructions title
     const title = this.add.text(
       this.cameras.main.centerX,
       this.cameras.main.centerY - 270,
@@ -170,15 +165,14 @@ export class MenuScene extends Phaser.Scene {
       }
     ).setOrigin(0.5);
 
-    // Instructions text
     const instructions = [
       'OBJECTIVE:',
       'Be the first player to collect all 52 cards!',
       '',
       'GAMEPLAY:',
       'Players take turns playing cards from their deck.',
-      'When doubles appear (5-5), slap the pile!',
-      'Sandwiches work too (5-7-5)!',
+      'Watch for slappable conditions (shown in top-left).',
+      'First to slap correctly wins the pile!',
       '',
       'FACE CARDS:',
       'When a face card is played, the other player must',
@@ -192,10 +186,13 @@ export class MenuScene extends Phaser.Scene {
       'Player 1: Q = Play Card, A = Slap',
       'Player 2: P = Play Card, L = Slap',
       '',
+      'NEW: Configure which slap rules are active!',
+      'Active rules display in top-left during game.',
+      '',
       'Click outside this panel or press ESC to close'
     ];
 
-    let yOffset = -220;
+    let yOffset = -240;
     instructions.forEach((line) => {
       const color = line.endsWith(':') ? COLORS.GOLD : COLORS.WHITE;
       const fontSize = line.endsWith(':') ? '20px' : '16px';
@@ -213,7 +210,7 @@ export class MenuScene extends Phaser.Scene {
       ).setOrigin(0.5);
 
       this.instructionsContainer.add(instructionText);
-      yOffset += line === '' ? 10 : 25;
+      yOffset += line === '' ? 10 : 24;
     });
 
     this.instructionsContainer.add([overlay, panel, title]);
@@ -221,10 +218,10 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private setupInput(): void {
-    // Space to start
+    // Space to quick start
     this.input.keyboard?.on('keydown-SPACE', () => {
       if (!this.instructionsVisible) {
-        this.startGame();
+        this.quickStart();
       }
     });
 
@@ -254,11 +251,11 @@ export class MenuScene extends Phaser.Scene {
     this.instructionsContainer.setVisible(this.instructionsVisible);
   }
 
-  private startGame(): void {
-    console.log('Starting game...');
+  private quickStart(): void {
+    console.log('Quick starting with default rules...');
     this.cameras.main.fadeOut(500, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.scene.start(SCENE_KEYS.GAME);
+      this.scene.start(SCENE_KEYS.GAME, { rules: DEFAULT_RULES });
     });
   }
 }

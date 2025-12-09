@@ -1,22 +1,22 @@
 import { Card } from './card';
-import { GameState, Player, SlapCondition, GameEvent } from '../common';
+import { GameState, Player, SlapCondition, GameEvent, GameRules, DEFAULT_RULES, RANK_VALUES, Rank } from '../common';
 
 export class RatScrew {
   private _player1Deck: Card[] = [];
   private _player2Deck: Card[] = [];
   private _centerPile: Card[] = [];
-  private _bonusPile: Card[] = []; // Separate bonus pile for missed slaps
+  private _bonusPile: Card[] = [];
   private _currentPlayer: Player = 1;
   private _gameState: GameState = GameState.PLAYING;
   private _challengePlayer: Player | null = null;
   private _challengeRemaining: number = 0;
   private _events: GameEvent[] = [];
-  
-  // Pile collection state
   private _pileAwaitingCollection: boolean = false;
   private _pileWinner: Player | null = null;
+  private _rules: GameRules;
 
-  constructor() {
+  constructor(rules: GameRules = DEFAULT_RULES) {
+    this._rules = { ...rules };
     this.initializeGame();
   }
 
@@ -40,14 +40,13 @@ export class RatScrew {
   }
   get pileAwaitingCollection(): boolean { return this._pileAwaitingCollection; }
   get pileWinner(): Player | null { return this._pileWinner; }
+  get rules(): GameRules { return { ...this._rules }; }
 
   // Initialize game
   initializeGame(): void {
-    // Create and shuffle deck
     const fullDeck = Card.createDeck();
     const shuffledDeck = Card.shuffleDeck(fullDeck);
 
-    // Deal cards
     this._player1Deck = shuffledDeck.slice(0, 26);
     this._player2Deck = shuffledDeck.slice(26, 52);
     this._centerPile = [];
@@ -87,18 +86,15 @@ export class RatScrew {
       message: `Player ${player} played ${card.display}`
     });
 
-    // CRITICAL: Check for slappable condition BEFORE processing challenge logic
-    // This allows doubles/sandwiches to override challenge outcomes
+    // Check for slappable condition BEFORE processing challenge logic
     const slappableCondition = this.getSlappableCondition();
     if (slappableCondition !== 'none') {
-      // There's a slappable condition! Alert players
       this.addEvent({
         type: 'slap_attempt',
         player,
-        message: `${slappableCondition.toUpperCase()} - SLAP NOW!`
+        message: `${slappableCondition.toUpperCase().replace('_', '-')} - SLAP NOW!`
       });
       
-      // If we're in a challenge, pause it - the slap takes priority
       if (this._gameState === GameState.CHALLENGE) {
         this.addEvent({
           type: 'challenge_started',
@@ -107,20 +103,15 @@ export class RatScrew {
         });
       }
       
-      // Don't process challenge logic or change state
-      // Wait for someone to slap (or miss the opportunity)
       return true;
     }
 
-    // No slappable condition - process normal game flow
+    // Process normal game flow
     if (card.isFaceCard) {
-      // Start a challenge
       this.startChallenge(player === 1 ? 2 : 1, card.challengeCount);
     } else if (this._gameState === GameState.CHALLENGE) {
-      // Non-face card during challenge
       this._challengeRemaining--;
       if (this._challengeRemaining <= 0) {
-        // Challenge failed - opponent wins
         this.endChallenge(false);
       } else {
         this.addEvent({
@@ -130,48 +121,35 @@ export class RatScrew {
         });
       }
     } else {
-      // Normal play - switch turns
       this._currentPlayer = player === 1 ? 2 : 1;
     }
 
-    // Check for game over
     this.checkGameOver();
-
     return true;
   }
 
   attemptSlap(player: Player): boolean {
-    // Don't allow slapping if game is over
     if (this._gameState === GameState.GAME_OVER) {
       return false;
     }
 
-    // Check if this is a slap to collect a won pile
     if (this._pileAwaitingCollection) {
       if (player === this._pileWinner) {
-        // Correct player slapping to collect their won pile
         this.collectPile(player);
         return true;
-      } else {
-        // Wrong player tried to collect - no penalty, just ignore
-        return false;
       }
+      return false;
     }
 
-    // Need at least 2 cards to slap for doubles (or 3 for sandwiches)
     if (this._centerPile.length < 2) {
-      // Silently ignore slaps when there aren't enough cards
       return false;
     }
 
     const condition = this.getSlappableCondition();
     
     if (condition !== 'none') {
-      // Valid slap - ANY player can win the pile
-      // This includes slapping during challenges!
       this.setPileWinner(player);
       
-      // If we were in a challenge, end it now
       if (this._gameState === GameState.CHALLENGE) {
         this.addEvent({
           type: 'slap_attempt',
@@ -179,7 +157,6 @@ export class RatScrew {
           condition,
           message: `Player ${player} slapped ${condition} during challenge! Challenge cancelled - Slap again to collect!`
         });
-        // Reset challenge state
         this._gameState = GameState.PLAYING;
         this._challengePlayer = null;
         this._challengeRemaining = 0;
@@ -194,7 +171,6 @@ export class RatScrew {
       
       return true;
     } else {
-      // Invalid slap - add penalty to BONUS pile
       this.penalizePlayer(player);
       this.addEvent({
         type: 'slap_attempt',
@@ -220,7 +196,6 @@ export class RatScrew {
 
   private endChallenge(challengerWon: boolean): void {
     if (challengerWon) {
-      // Challenger played a face card, they win the pile
       if (this._challengePlayer) {
         this.setPileWinner(this._challengePlayer);
         this.addEvent({
@@ -230,7 +205,6 @@ export class RatScrew {
         });
       }
     } else {
-      // Challenger failed, original player wins
       const originalPlayer = this._challengePlayer === 1 ? 2 : 1;
       this.setPileWinner(originalPlayer);
       this.addEvent({
@@ -240,7 +214,6 @@ export class RatScrew {
       });
     }
 
-    // Reset challenge state but keep pile on table
     this._gameState = GameState.PLAYING;
     this._challengePlayer = null;
     this._challengeRemaining = 0;
@@ -249,16 +222,14 @@ export class RatScrew {
   private setPileWinner(player: Player): void {
     this._pileAwaitingCollection = true;
     this._pileWinner = player;
-    this._currentPlayer = player; // Winner's turn next
+    this._currentPlayer = player;
   }
 
   private collectPile(player: Player): void {
     const playerDeck = player === 1 ? this._player1Deck : this._player2Deck;
     
-    // Add all center cards to bottom of player's deck
     playerDeck.push(...this._centerPile);
     
-    // Also add all bonus pile cards to winner's deck
     const bonusCount = this._bonusPile.length;
     if (bonusCount > 0) {
       playerDeck.push(...this._bonusPile);
@@ -271,12 +242,8 @@ export class RatScrew {
     
     this._centerPile = [];
     this._bonusPile = [];
-    
-    // Reset pile collection state
     this._pileAwaitingCollection = false;
     this._pileWinner = null;
-    
-    // Player who collected pile goes next
     this._currentPlayer = player;
     this._gameState = GameState.PLAYING;
     
@@ -287,7 +254,6 @@ export class RatScrew {
       message: `Player ${player} collected the pile! (${totalCards} cards total)`
     });
 
-    // Check for game over
     this.checkGameOver();
   }
 
@@ -296,7 +262,6 @@ export class RatScrew {
     
     if (playerDeck.length > 0) {
       const card = playerDeck.shift()!;
-      // Add penalty card to BONUS pile instead of center pile
       this._bonusPile.push(card);
       
       this.addEvent({
@@ -305,7 +270,6 @@ export class RatScrew {
         message: `Player ${player} penalized: ${card.display} added to bonus pile (${this._bonusPile.length} cards).`
       });
     } else {
-      // Player has no cards to penalize
       this.addEvent({
         type: 'slap_attempt',
         player,
@@ -313,48 +277,107 @@ export class RatScrew {
       });
     }
     
-    // Check if this causes game over
     this.checkGameOver();
   }
 
   private getSlappableCondition(): SlapCondition {
-    // Need at least 2 cards for doubles
-    if (this._centerPile.length < 2) {
+    const pile = this._centerPile;
+    
+    if (pile.length < 2) {
       return 'none';
     }
 
-    const pile = this._centerPile;
     const topCard = pile[pile.length - 1];
     const secondCard = pile[pile.length - 2];
 
-    // Defensive check for undefined cards
     if (!topCard || !secondCard) {
-      console.error('Undefined cards in center pile during slap check');
       return 'none';
     }
 
-    // Check for doubles (two consecutive cards of same rank)
-    if (topCard.hasSameRank(secondCard)) {
+    // DOUBLES: Two consecutive cards of same rank
+    if (this._rules.doubles && topCard.hasSameRank(secondCard)) {
       console.log(`DOUBLE DETECTED: ${topCard.display} and ${secondCard.display}`);
       return 'doubles';
     }
 
-    // Check for sandwich (same rank separated by one card)
-    if (pile.length >= 3) {
+    // SANDWICH: Same rank separated by one card
+    if (this._rules.sandwich && pile.length >= 3) {
       const thirdCard = pile[pile.length - 3];
-      
-      if (!thirdCard) {
-        console.error('Undefined third card in center pile during sandwich check');
-        return 'none';
-      }
-      
-      if (topCard.hasSameRank(thirdCard)) {
+      if (thirdCard && topCard.hasSameRank(thirdCard)) {
         console.log(`SANDWICH DETECTED: ${topCard.display}, ${secondCard.display}, ${thirdCard.display}`);
         return 'sandwich';
       }
     }
 
+    // TENS: Two cards that add up to 10
+    if (this._rules.tens) {
+      const topValue = RANK_VALUES[topCard.rank];
+      const secondValue = RANK_VALUES[secondCard.rank];
+      if (topValue + secondValue === 10) {
+        return 'tens';
+      }
+    }
+
+    // MARRIAGE: King and Queen together (any order)
+    if (this._rules.marriage) {
+      const isMarriage = 
+        (topCard.rank === Rank.KING && secondCard.rank === Rank.QUEEN) ||
+        (topCard.rank === Rank.QUEEN && secondCard.rank === Rank.KING);
+      if (isMarriage) {
+        return 'marriage';
+      }
+    }
+
+    // TOP-BOTTOM: First and last cards match
+    if (this._rules.topBottom && pile.length >= 3) {
+      const bottomCard = pile[0];
+      if (bottomCard && topCard.hasSameRank(bottomCard)) {
+        return 'top_bottom';
+      }
+    }
+
+    // FOUR IN A ROW: Four consecutive ranks
+    if (this._rules.fourInRow && pile.length >= 4) {
+      const cards = [
+        pile[pile.length - 4],
+        pile[pile.length - 3],
+        pile[pile.length - 2],
+        pile[pile.length - 1]
+      ];
+      
+      if (this.isSequence(cards)) {
+        return 'four_in_row';
+      }
+    }
+
+    // SEQUENCE: Any 3+ consecutive ranks
+    if (this._rules.sequence && pile.length >= 3) {
+      const last3 = [
+        pile[pile.length - 3],
+        pile[pile.length - 2],
+        pile[pile.length - 1]
+      ];
+      
+      if (this.isSequence(last3)) {
+        return 'sequence';
+      }
+    }
+
     return 'none';
+  }
+
+  private isSequence(cards: Card[]): boolean {
+    const values = cards.map(c => RANK_VALUES[c.rank]).sort((a, b) => a - b);
+    
+    for (let i = 1; i < values.length; i++) {
+      if (values[i] !== values[i - 1] + 1) {
+        if (!(values[i - 1] === 13 && values[i] === 1)) {
+          return false;
+        }
+      }
+    }
+    
+    return true;
   }
 
   private checkGameOver(): void {
@@ -374,13 +397,11 @@ export class RatScrew {
     console.log(`[RatScrew] ${event.message}`);
   }
 
-  // Utility methods
   canPlayerPlay(player: Player): boolean {
     if (this._gameState === GameState.GAME_OVER) {
       return false;
     }
 
-    // Can't play if pile is awaiting collection
     if (this._pileAwaitingCollection) {
       return false;
     }
@@ -410,5 +431,20 @@ export class RatScrew {
 
   isValidSlap(): boolean {
     return this.getSlappableCondition() !== 'none';
+  }
+
+  getActiveRuleNames(): string[] {
+    const activeRules: string[] = [];
+    
+    if (this._rules.doubles) activeRules.push('Doubles');
+    if (this._rules.sandwich) activeRules.push('Sandwich');
+    if (this._rules.tens) activeRules.push('Tens');
+    if (this._rules.marriage) activeRules.push('Marriage');
+    if (this._rules.topBottom) activeRules.push('Top-Bottom');
+    if (this._rules.fourInRow) activeRules.push('4-in-Row');
+    if (this._rules.sequence) activeRules.push('Sequence');
+    if (this._rules.jokers) activeRules.push('Jokers');
+    
+    return activeRules;
   }
 }

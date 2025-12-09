@@ -1,27 +1,26 @@
-// Scene keys for Phaser scene management
+// Scene keys
 export const SCENE_KEYS = {
   PRELOAD: 'PreloadScene',
   MENU: 'MenuScene',
+  RULES: 'RulesScene',
   GAME: 'GameScene'
 } as const;
 
-// Asset keys for loading and referencing game assets
+// Asset keys
 export const ASSET_KEYS = {
   CARDS: 'cards',
   TITLE: 'title',
   CLICK_TO_START: 'clickToStart'
 } as const;
 
-// Card dimensions and scaling - INCREASED FROM 0.4 TO 0.6 FOR 50% LARGER CARDS
+// Card dimensions
 export const CARD_WIDTH = 140;
 export const CARD_HEIGHT = 190;
-export const CARD_SCALE = 0.6;
-
-// Game dimensions
+export const CARD_SCALE = 0.4;
 export const GAME_WIDTH = 1200;
 export const GAME_HEIGHT = 800;
 
-// Card suit enumeration
+// Card enums
 export enum Suit {
   CLUBS = 'CLUBS',
   DIAMONDS = 'DIAMONDS',
@@ -29,7 +28,6 @@ export enum Suit {
   SPADES = 'SPADES'
 }
 
-// Card rank enumeration
 export enum Rank {
   ACE = 'ACE',
   TWO = 'TWO',
@@ -46,16 +44,17 @@ export enum Rank {
   KING = 'KING'
 }
 
-// Game state enumeration
+// Player type
+export type Player = 1 | 2;
+
+// Game states
 export enum GameState {
   MENU = 'MENU',
+  RULES = 'RULES',
   PLAYING = 'PLAYING',
   CHALLENGE = 'CHALLENGE',
   GAME_OVER = 'GAME_OVER'
 }
-
-// Player type
-export type Player = 1 | 2;
 
 // Face card challenge counts
 export const FACE_CARD_CHALLENGES: Record<Rank, number> = {
@@ -74,7 +73,7 @@ export const FACE_CARD_CHALLENGES: Record<Rank, number> = {
   [Rank.KING]: 3
 };
 
-// Spritesheet frame mappings
+// Sprite sheet offsets
 export const SUIT_OFFSETS: Record<Suit, number> = {
   [Suit.CLUBS]: 0,
   [Suit.DIAMONDS]: 1,
@@ -98,7 +97,7 @@ export const RANK_OFFSETS: Record<Rank, number> = {
   [Rank.KING]: 12
 };
 
-// Card display values
+// Display strings
 export const RANK_DISPLAY: Record<Rank, string> = {
   [Rank.ACE]: 'A',
   [Rank.TWO]: '2',
@@ -122,6 +121,23 @@ export const SUIT_DISPLAY: Record<Suit, string> = {
   [Suit.SPADES]: '♠'
 };
 
+// Rank values for calculations
+export const RANK_VALUES: Record<Rank, number> = {
+  [Rank.ACE]: 1,
+  [Rank.TWO]: 2,
+  [Rank.THREE]: 3,
+  [Rank.FOUR]: 4,
+  [Rank.FIVE]: 5,
+  [Rank.SIX]: 6,
+  [Rank.SEVEN]: 7,
+  [Rank.EIGHT]: 8,
+  [Rank.NINE]: 9,
+  [Rank.TEN]: 10,
+  [Rank.JACK]: 11,
+  [Rank.QUEEN]: 12,
+  [Rank.KING]: 13
+};
+
 // Color helpers
 export const RED_SUITS = [Suit.DIAMONDS, Suit.HEARTS];
 export const BLACK_SUITS = [Suit.CLUBS, Suit.SPADES];
@@ -140,8 +156,64 @@ export const COLORS = {
   YELLOW: '#FFFF00'
 } as const;
 
-// Slap condition types
-export type SlapCondition = 'doubles' | 'sandwich' | 'none';
+// Slap condition types - ALL POSSIBLE RULES
+export type SlapCondition = 
+  | 'doubles'        // Two cards of same rank in a row (5-5)
+  | 'sandwich'       // Same rank separated by one card (5-7-5)
+  | 'tens'           // Two cards that add up to 10 (3-7, 4-6, etc.)
+  | 'marriage'       // King and Queen together (K-Q or Q-K)
+  | 'top_bottom'     // Top and bottom cards of pile match
+  | 'four_in_row'    // Four cards in sequence (3-4-5-6)
+  | 'sequence'       // Any sequence of 3+ consecutive ranks
+  | 'jokers'         // If jokers are enabled
+  | 'none';
+
+// Game rules configuration
+export interface GameRules {
+  doubles: boolean;
+  sandwich: boolean;
+  tens: boolean;
+  marriage: boolean;
+  topBottom: boolean;
+  fourInRow: boolean;
+  sequence: boolean;
+  jokers: boolean;
+}
+
+// Rule descriptions for UI
+export const RULE_DESCRIPTIONS: Record<keyof GameRules, string> = {
+  doubles: 'Two cards of same rank in a row (5-5)',
+  sandwich: 'Same rank with one card between (5-7-5)',
+  tens: 'Two cards that add up to 10 (3-7, 4-6)',
+  marriage: 'King and Queen together (K-Q or Q-K)',
+  topBottom: 'Top and bottom cards of pile match',
+  fourInRow: 'Four consecutive ranks (3-4-5-6)',
+  sequence: 'Any 3+ card sequence (5-6-7)',
+  jokers: 'Include jokers in deck (always slappable)'
+};
+
+// Rule display names
+export const RULE_NAMES: Record<keyof GameRules, string> = {
+  doubles: 'Doubles',
+  sandwich: 'Sandwich',
+  tens: 'Adds to 10',
+  marriage: 'Marriage',
+  topBottom: 'Top-Bottom',
+  fourInRow: '4-in-a-Row',
+  sequence: 'Sequence',
+  jokers: 'Jokers'
+};
+
+export const DEFAULT_RULES: GameRules = {
+  doubles: true,
+  sandwich: true,
+  tens: false,
+  marriage: false,
+  topBottom: false,
+  fourInRow: false,
+  sequence: false,
+  jokers: false
+};
 
 // Game event types
 export interface GameEvent {

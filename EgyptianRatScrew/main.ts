@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS } from './common';
 import { PreloadScene } from './scenes/preload-scene';
 import { MenuScene } from './scenes/menu-scene';
+import { RulesScene } from './scenes/rules-scene';
 import { GameScene } from './scenes/game-scene';
 
 // Game configuration
@@ -12,8 +13,8 @@ const config: Phaser.Types.Core.GameConfig = {
   parent: 'game-container',
   backgroundColor: COLORS.BACKGROUND,
   
-  // Scene configuration
-  scene: [PreloadScene, MenuScene, GameScene],
+  // Scene configuration - Added RulesScene
+  scene: [PreloadScene, MenuScene, RulesScene, GameScene],
   
   // Physics (not needed for this game, but keeping for potential future use)
   physics: {
@@ -26,8 +27,8 @@ const config: Phaser.Types.Core.GameConfig = {
   
   // MINIMAL SCALING CONFIGURATION - prevents duplication
   scale: {
-    mode: Phaser.Scale.NONE, // No automatic scaling to prevent duplication
-    autoCenter: Phaser.Scale.NO_CENTER, // No auto-centering
+    mode: Phaser.Scale.NONE,
+    autoCenter: Phaser.Scale.NO_CENTER,
   },
   
   // Input configuration
@@ -80,7 +81,7 @@ function scaleCanvas(canvas: HTMLCanvasElement, container: HTMLElement) {
 // Initialize the game
 function initializeGame(): Phaser.Game | null {
   try {
-    console.log('Initializing Egyptian Ratscrew game...');
+    console.log('Initializing Egyptian Ratscrew game with rules system...');
     console.log('Game dimensions:', GAME_WIDTH, 'x', GAME_HEIGHT);
     
     // Remove loading text
@@ -99,11 +100,9 @@ function initializeGame(): Phaser.Game | null {
     // Clear container and ensure single canvas
     const container = document.getElementById('game-container');
     if (container) {
-      // Remove any existing canvases
       const existingCanvases = container.querySelectorAll('canvas');
       existingCanvases.forEach(canvas => canvas.remove());
       
-      // Set container styling
       container.style.width = '100%';
       container.style.height = '100vh';
       container.style.position = 'relative';
@@ -123,10 +122,8 @@ function initializeGame(): Phaser.Game | null {
       const container = document.getElementById('game-container');
       
       if (canvas && container) {
-        // Apply custom scaling
         scaleCanvas(canvas, container);
         
-        // Handle resize events
         let resizeTimeout: NodeJS.Timeout;
         window.addEventListener('resize', () => {
           clearTimeout(resizeTimeout);
@@ -150,7 +147,6 @@ function initializeGame(): Phaser.Game | null {
   } catch (error) {
     console.error('Failed to initialize game:', error);
     
-    // Show error message to user
     const container = document.getElementById('game-container');
     if (container) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
