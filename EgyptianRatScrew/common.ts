@@ -135,7 +135,9 @@ export const COLORS = {
   RED: '#ff0000',
   GREEN: '#00ff00',
   ORANGE: '#ff8c00',
-  LIGHT_GRAY: '#d3d3d3'
+  LIGHT_GRAY: '#d3d3d3',
+  BLUE: '#4169E1',
+  YELLOW: '#FFFF00'
 } as const;
 
 // Slap condition types

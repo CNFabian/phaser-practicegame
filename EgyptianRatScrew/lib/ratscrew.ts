@@ -48,8 +48,8 @@ export class RatScrew {
     const shuffledDeck = Card.shuffleDeck(fullDeck);
 
     // Deal cards
-    this._player1Deck = fullDeck.slice(0, 26);
-    this._player2Deck = fullDeck.slice(26, 52);
+    this._player1Deck = shuffledDeck.slice(0, 26);
+    this._player2Deck = shuffledDeck.slice(26, 52);
     this._centerPile = [];
     this._bonusPile = [];
     this._currentPlayer = 1;

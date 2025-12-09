@@ -1,99 +1,107 @@
 import * as Phaser from 'phaser';
+import { SCENE_KEYS, ASSET_KEYS, COLORS, CARD_SCALE, CARD_WIDTH, CARD_HEIGHT, GameState, Player, Suit } from '../common';
 import { RatScrew } from '../lib/ratscrew';
 import { Card } from '../lib/card';
-import { 
-  SCENE_KEYS, 
-  COLORS, 
-  CARD_WIDTH, 
-  CARD_HEIGHT, 
-  CARD_SCALE,
-  GameState,
-  Player,
-  Suit  // ADDED: Import Suit enum for proper type checking
-} from '../common';
 
 export class GameScene extends Phaser.Scene {
   private game_logic!: RatScrew;
+  private player1DeckSprite!: Phaser.GameObjects.Image;
+  private player2DeckSprite!: Phaser.GameObjects.Image;
+  private centerCardSprite!: Phaser.GameObjects.Image | Phaser.GameObjects.Container;
+  private bonusPileSprite!: Phaser.GameObjects.Rectangle;
   
-  // UI Elements
+  // UI Text elements
   private player1CountText!: Phaser.GameObjects.Text;
   private player2CountText!: Phaser.GameObjects.Text;
   private centerCountText!: Phaser.GameObjects.Text;
   private bonusCountText!: Phaser.GameObjects.Text;
-  private turnIndicator!: Phaser.GameObjects.Text;
   private statusText!: Phaser.GameObjects.Text;
+  private turnIndicator!: Phaser.GameObjects.Text;
   private challengeText!: Phaser.GameObjects.Text;
-  private instructionsText!: Phaser.GameObjects.Text;
   private pileCollectionText!: Phaser.GameObjects.Text;
-  
-  // Card Sprites
-  private player1DeckSprite!: Phaser.GameObjects.Image;
-  private player2DeckSprite!: Phaser.GameObjects.Image;
-  private centerCardSprite!: Phaser.GameObjects.Image | Phaser.GameObjects.Container;
-  private bonusPileSprite!: Phaser.GameObjects.Image;
+
+  private usingSprites: boolean = false;
 
   constructor() {
     super({ key: SCENE_KEYS.GAME });
   }
 
   create(): void {
-    // Initialize game logic
-    this.game_logic = new RatScrew();
-
-    // Set up background
-    this.cameras.main.setBackgroundColor(COLORS.BACKGROUND);
-
-    // Create visual elements
-    this.createPlayingAreas();
+    this.checkAssets();
+    this.createBackground();
+    this.initializeGame();
     this.createUI();
-    this.setupInputHandlers();
-
-    // Initial display update
+    this.setupInput();
     this.updateDisplay();
   }
 
-  private createPlayingAreas(): void {
-    const graphics = this.add.graphics();
-    const centerX = this.cameras.main.centerX;
-    const centerY = this.cameras.main.centerY;
-    
-    // Calculate deck positions
-    const player1X = 180;
-    const player2X = this.cameras.main.width - 180;
+  private checkAssets(): void {
+    this.usingSprites = this.textures.exists(ASSET_KEYS.CARDS);
+    if (!this.usingSprites) {
+      console.warn('Card sprites not found, using fallback rectangles');
+    }
+  }
 
-    // Center pile area (green felt)
-    graphics.fillStyle(0x0a5f0a, 1);
-    graphics.fillRoundedRect(
-      centerX - 150,
-      centerY - 150,
-      300,
-      300,
-      10
+  private createBackground(): void {
+    // Main background
+    this.add.rectangle(
+      this.cameras.main.centerX,
+      this.cameras.main.centerY,
+      this.cameras.main.width,
+      this.cameras.main.height,
+      0x0a5f38
     );
 
-    // Player 1 area (bottom) - FIX: Convert hex color string to number
-    graphics.lineStyle(4, parseInt(COLORS.GOLD.replace('#', ''), 16), 1);
+    // Decorative border
+    const graphics = this.add.graphics();
+    graphics.lineStyle(8, 0x8B4513);
     graphics.strokeRoundedRect(
-      player1X - (CARD_WIDTH * CARD_SCALE) / 2 - 10,
+      50, 50,
+      this.cameras.main.width - 100,
+      this.cameras.main.height - 100,
+      20
+    );
+
+    this.createPlayingAreas();
+  }
+
+  private createPlayingAreas(): void {
+    const centerX = this.cameras.main.centerX;
+    const centerY = this.cameras.main.centerY;
+
+    const graphics = this.add.graphics();
+    graphics.lineStyle(2, 0xffd700, 0.5);
+
+    // Center pile area
+    graphics.strokeRoundedRect(
+      centerX - (CARD_WIDTH * CARD_SCALE) / 2 - 10,
+      centerY - (CARD_HEIGHT * CARD_SCALE) / 2 - 10,
+      CARD_WIDTH * CARD_SCALE + 20,
+      CARD_HEIGHT * CARD_SCALE + 20,
+      5
+    );
+
+    // Player 1 deck area (bottom)
+    graphics.strokeRoundedRect(
+      100 - 10,
       this.cameras.main.height - 150 - (CARD_HEIGHT * CARD_SCALE) / 2 - 10,
       CARD_WIDTH * CARD_SCALE + 20,
       CARD_HEIGHT * CARD_SCALE + 20,
       5
     );
 
-    // Player 2 area (top)
+    // Player 2 deck area (top)
     graphics.strokeRoundedRect(
-      player2X - (CARD_WIDTH * CARD_SCALE) / 2 - 10,
+      this.cameras.main.width - 100 - (CARD_WIDTH * CARD_SCALE) / 2 - 10,
       150 - (CARD_HEIGHT * CARD_SCALE) / 2 - 10,
       CARD_WIDTH * CARD_SCALE + 20,
       CARD_HEIGHT * CARD_SCALE + 20,
       5
     );
-    
-    // Bonus pile area (to the right of center) - FIX: Use fallback color since ORANGE doesn't exist
-    graphics.lineStyle(3, 0xff8c00, 1); // Orange color as hex number
+
+    // Bonus pile area (right side)
     graphics.strokeRoundedRect(
-      centerX + 180 - (CARD_WIDTH * CARD_SCALE) / 2 - 10,
+      this.cameras.main.width - 200 - 10,
       centerY - (CARD_HEIGHT * CARD_SCALE) / 2 - 10,
       CARD_WIDTH * CARD_SCALE + 20,
       CARD_HEIGHT * CARD_SCALE + 20,
@@ -101,109 +109,93 @@ export class GameScene extends Phaser.Scene {
     );
   }
 
+  private initializeGame(): void {
+    this.game_logic = new RatScrew();
+  }
+
   private createUI(): void {
     const centerX = this.cameras.main.centerX;
     const centerY = this.cameras.main.centerY;
-    
-    const player1X = 180;
-    const player2X = this.cameras.main.width - 180;
 
-    // Center pile
+    // Create card sprites
     this.centerCardSprite = this.createCardDisplay(centerX, centerY, null);
+    this.player1DeckSprite = this.createCardDisplay(100, this.cameras.main.height - 150, null) as any;
+    this.player2DeckSprite = this.createCardDisplay(this.cameras.main.width - 100, 150, null) as any;
     
-    // Bonus pile (to the right of center)
-    this.bonusPileSprite = this.createDeckBack(centerX + 180, centerY);
+    // Bonus pile (initially hidden)
+    this.bonusPileSprite = this.add.rectangle(
+      this.cameras.main.width - 200,
+      centerY,
+      CARD_WIDTH * CARD_SCALE,
+      CARD_HEIGHT * CARD_SCALE,
+      0x4169E1
+    );
+    this.bonusPileSprite.setStrokeStyle(2, 0x000080);
     this.bonusPileSprite.setVisible(false);
 
-    // Player decks (face down)
-    this.player1DeckSprite = this.createDeckBack(player1X, this.cameras.main.height - 150);
-    this.player2DeckSprite = this.createDeckBack(player2X, 150);
-
-    // Player labels
-    this.add.text(player1X, this.cameras.main.height - 200, 'PLAYER 1', {
-      fontSize: '20px',
-      color: COLORS.WHITE,
-      fontStyle: 'bold'
-    }).setOrigin(0.5, 0);
-
-    this.add.text(player2X, 200, 'PLAYER 2', {
-      fontSize: '20px',
-      color: COLORS.WHITE,
-      fontStyle: 'bold'
-    }).setOrigin(0.5, 1);
-
-    // Card counts
-    this.player1CountText = this.add.text(player1X, this.cameras.main.height - 100, '', {
-      fontSize: '24px',
-      color: COLORS.WHITE,
-      fontStyle: 'bold'
-    }).setOrigin(0.5, 0);
-
-    this.player2CountText = this.add.text(player2X, 100, '', {
-      fontSize: '24px',
-      color: COLORS.WHITE,
-      fontStyle: 'bold'
-    }).setOrigin(0.5, 1);
-
-    this.centerCountText = this.add.text(centerX, centerY + 120, '', {
-      fontSize: '20px',
-      color: COLORS.WHITE,
-      fontStyle: 'bold'
-    }).setOrigin(0.5);
-    
-    // Bonus pile count - FIX: Use hex color string instead of COLORS.ORANGE
-    this.bonusCountText = this.add.text(centerX + 180, centerY + 80, 'Bonus: 0', {
+    // Card count displays
+    this.player1CountText = this.add.text(100, this.cameras.main.height - 50, 'Cards: 26', {
       fontSize: '18px',
-      color: '#ff8c00', // Orange color directly as hex string
+      color: COLORS.WHITE,
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    // Turn indicator
-    this.turnIndicator = this.add.text(centerX, 50, '', {
-      fontSize: '28px',
+    this.player2CountText = this.add.text(this.cameras.main.width - 100, 50, 'Cards: 26', {
+      fontSize: '18px',
+      color: COLORS.WHITE,
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    this.centerCountText = this.add.text(centerX, centerY + 80, 'Center: 0', {
+      fontSize: '16px',
       color: COLORS.GOLD,
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    // Challenge text
-    this.challengeText = this.add.text(centerX, 90, '', {
-      fontSize: '20px',
+    this.bonusCountText = this.add.text(this.cameras.main.width - 200, centerY + 80, 'Bonus: 0', {
+      fontSize: '16px',
+      color: '#4169E1', // Royal blue color
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    // Status and instructions
+    this.statusText = this.add.text(centerX, this.cameras.main.height - 100, 'Game ready', {
+      fontSize: '16px',
+      color: COLORS.WHITE,
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    this.turnIndicator = this.add.text(centerX, 100, "Player 1's Turn", {
+      fontSize: '24px',
+      color: COLORS.GOLD,
+      fontStyle: 'bold'
+    }).setOrigin(0.5);
+
+    this.challengeText = this.add.text(centerX, 130, '', {
+      fontSize: '16px',
       color: COLORS.RED,
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    // Status text
-    this.statusText = this.add.text(centerX, centerY - 180, '', {
-      fontSize: '18px',
-      color: COLORS.WHITE,
-      align: 'center',
-      wordWrap: { width: 500 }
-    }).setOrigin(0.5);
-
-    // Pile collection text
-    this.pileCollectionText = this.add.text(centerX, centerY + 160, '', {
-      fontSize: '24px',
-      color: COLORS.GOLD,
+    // Pile collection indicator (initially hidden)
+    this.pileCollectionText = this.add.text(centerX, centerY - 100, '', {
+      fontSize: '20px',
+      color: COLORS.GREEN,
       fontStyle: 'bold',
       stroke: COLORS.BLACK,
-      strokeThickness: 4
+      strokeThickness: 3
     }).setOrigin(0.5);
     this.pileCollectionText.setVisible(false);
 
-    // Instructions (centered at bottom) - FIX: Use hex color string instead of COLORS.LIGHT_GRAY
-    this.instructionsText = this.add.text(
-      centerX,
-      this.cameras.main.height - 50,
-      'Player 1: Q (Play) | A (Slap)  ||  Player 2: P (Play) | L (Slap)  ||  ESC (Menu)',
-      {
-        fontSize: '16px',
-        color: '#d3d3d3', // Light gray color directly as hex string
-        align: 'center'
-      }
-    ).setOrigin(0.5);
+    // Control instructions
+    const controlsText = this.add.text(centerX, this.cameras.main.height - 30, 
+      'Player 1: Q=Play, A=Slap | Player 2: P=Play, L=Slap | ESC=Menu', {
+      fontSize: '14px',
+      color: COLORS.LIGHT_GRAY
+    }).setOrigin(0.5);
   }
 
-  private setupInputHandlers(): void {
+  private setupInput(): void {
     if (!this.input.keyboard) return;
 
     // Player 1 controls
@@ -242,50 +234,23 @@ export class GameScene extends Phaser.Scene {
       cardBg.setStrokeStyle(2, 0x000000);
       
       // FIX: Use proper Suit enum comparison instead of string literals
-      const suitColor = (card.suit === Suit.HEARTS || card.suit === Suit.DIAMONDS) ? 0xff0000 : 0x000000;
-      const rankText = this.add.text(0, -10, card.displayValue, {
-        fontSize: '32px',
+      const suitColor = (card.suit === Suit.HEARTS || card.suit === Suit.DIAMONDS) ? 
+        0xff0000 : 0x000000;
+      
+      const rankText = this.add.text(0, -15, card.displayValue, {
+        fontSize: '16px',
         color: `#${suitColor.toString(16).padStart(6, '0')}`,
         fontStyle: 'bold'
       }).setOrigin(0.5);
       
-      // FIX: Use proper Suit enum mapping instead of string literals
-      const suitSymbols: { [key in Suit]: string } = {
-        [Suit.HEARTS]: '♥',
-        [Suit.DIAMONDS]: '♦',
-        [Suit.CLUBS]: '♣',
-        [Suit.SPADES]: '♠'
-      };
-      
-      const suitText = this.add.text(0, 15, suitSymbols[card.suit], {
-        fontSize: '24px',
-        color: `#${suitColor.toString(16).padStart(6, '0')}`
+      const suitText = this.add.text(0, 5, card.displaySuit, {
+        fontSize: '20px',
+        color: `#${suitColor.toString(16).padStart(6, '0')}`,
+        fontStyle: 'bold'
       }).setOrigin(0.5);
       
       container.add([cardBg, rankText, suitText]);
       return container;
-    }
-  }
-
-  private createDeckBack(x: number, y: number): Phaser.GameObjects.Image {
-    // Check if we have a card back texture
-    if (this.textures.exists('card-back')) {
-      const cardBack = this.add.image(x, y, 'card-back');
-      cardBack.setScale(CARD_SCALE);
-      return cardBack;
-    } else {
-      // Fallback: Create simple card back
-      const graphics = this.add.graphics();
-      graphics.fillStyle(0x0000ff, 1);
-      graphics.fillRoundedRect(0, 0, CARD_WIDTH * CARD_SCALE, CARD_HEIGHT * CARD_SCALE, 5);
-      graphics.lineStyle(2, 0xffffff, 1);
-      graphics.strokeRoundedRect(0, 0, CARD_WIDTH * CARD_SCALE, CARD_HEIGHT * CARD_SCALE, 5);
-      
-      graphics.generateTexture('card-back-generated', CARD_WIDTH * CARD_SCALE, CARD_HEIGHT * CARD_SCALE);
-      graphics.destroy();
-      
-      const cardBack = this.add.image(x, y, 'card-back-generated');
-      return cardBack;
     }
   }
 
@@ -357,16 +322,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateDisplay(): void {
-    // Update card counts
-    this.player1CountText.setText(`Cards: ${this.game_logic.player1Count}`);
-    this.player2CountText.setText(`Cards: ${this.game_logic.player2Count}`);
-    this.centerCountText.setText(`Center: ${this.game_logic.centerCount}`);
+    // Update all the non-center card elements first
+    this.updateDisplayWithoutCenterCard();
     
-    // Update bonus pile
-    const bonusCount = this.game_logic.bonusCount;
-    this.bonusCountText.setText(`Bonus: ${bonusCount}`);
-    this.bonusPileSprite.setVisible(bonusCount > 0);
-
     // Update center card
     this.centerCardSprite.destroy();
     this.centerCardSprite = this.createCardDisplay(
@@ -374,45 +332,6 @@ export class GameScene extends Phaser.Scene {
       this.cameras.main.centerY,
       this.game_logic.topCard
     );
-
-    // Update status
-    this.statusText.setText(this.game_logic.getGameStatusMessage());
-
-    // Update pile collection indicator
-    if (this.game_logic.pileAwaitingCollection && this.game_logic.pileWinner) {
-      this.pileCollectionText.setText(`Player ${this.game_logic.pileWinner}: SLAP TO COLLECT!`);
-      this.pileCollectionText.setVisible(true);
-      
-      // Add pulsing animation
-      this.tweens.add({
-        targets: this.pileCollectionText,
-        scale: 1.1,
-        duration: 500,
-        yoyo: true,
-        repeat: -1
-      });
-    } else {
-      this.pileCollectionText.setVisible(false);
-      this.tweens.killTweensOf(this.pileCollectionText);
-      this.pileCollectionText.setScale(1);
-    }
-
-    // Update turn indicator
-    if (this.game_logic.gameState === GameState.PLAYING) {
-      this.turnIndicator.setText(`Player ${this.game_logic.currentPlayer}'s Turn`);
-      this.challengeText.setText('');
-    } else if (this.game_logic.gameState === GameState.CHALLENGE) {
-      this.turnIndicator.setText(`Challenge Mode`);
-      this.challengeText.setText(`Player ${this.game_logic.challengePlayer} has ${this.game_logic.challengeRemaining} chances`);
-    } else if (this.game_logic.gameState === GameState.GAME_OVER) {
-      this.turnIndicator.setText(`GAME OVER!`);
-      this.challengeText.setText(`Player ${this.game_logic.winner} Wins!`);
-      this.showWinScreen();
-    }
-
-    // Update deck visibility
-    this.player1DeckSprite.setVisible(this.game_logic.player1Count > 0);
-    this.player2DeckSprite.setVisible(this.game_logic.player2Count > 0);
   }
 
   private showPlayCardAnimation(player: Player): void {
@@ -444,30 +363,11 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  // IMPROVED: Clean text-only slap feedback animation
   private showSlapFeedback(player: Player, success: boolean): void {
-    // Screen shake
-    this.cameras.main.shake(200, success ? 0.005 : 0.01);
-
-    // Flash effect
-    const flash = this.add.rectangle(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY,
-      this.cameras.main.width,
-      this.cameras.main.height,
-      success ? 0x00ff00 : 0xff0000,
-      0.3
-    );
-
-    this.tweens.add({
-      targets: flash,
-      alpha: 0,
-      duration: 200,
-      onComplete: () => {
-        flash.destroy();
-      }
-    });
-
-    // Feedback text
+    // REMOVED: Flash overlay - keeping only text feedback
+    
+    // ENHANCED FEEDBACK TEXT with text-only shake animation
     const feedbackText = this.add.text(
       this.cameras.main.centerX,
       this.cameras.main.centerY - 50,
@@ -481,16 +381,61 @@ export class GameScene extends Phaser.Scene {
       }
     ).setOrigin(0.5);
 
+    // Store original position for shake effect
+    const originalX = feedbackText.x;
+    const originalY = feedbackText.y;
+
+    // TEXT-ONLY SHAKE: Smooth oscillating shake just for the text
+    const shakeIntensity = success ? 2 : 4; // Gentle shake for good slap, stronger for bad
+    const shakeDuration = success ? 300 : 500;
+    
     this.tweens.add({
       targets: feedbackText,
-      y: feedbackText.y - 50,
-      alpha: 0,
-      duration: 1000,
-      ease: 'Power2',
+      x: originalX + shakeIntensity,
+      duration: shakeDuration / 12, // Quick oscillations
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: 11 // Creates 6 complete shake cycles
+      // REMOVED: onComplete that was forcing text back to original position
+    });
+
+    // Pop-in effect (scale animation)
+    feedbackText.setScale(0);
+    this.tweens.add({
+      targets: feedbackText,
+      scale: 1.2,
+      duration: 150,
+      ease: 'Back.easeOut',
       onComplete: () => {
-        feedbackText.destroy();
+        // Then scale back to normal and move up
+        this.tweens.add({
+          targets: feedbackText,
+          scale: 1,
+          y: feedbackText.y - 30,
+          duration: 200,
+          ease: 'Cubic.easeOut',
+          onComplete: () => {
+            // FIXED: Stop the shake animation when scaling/movement is complete
+            // Kill all tweens on the feedbackText object
+            this.tweens.killTweensOf(feedbackText);
+            
+            // Start fade-out from current transformed position
+            this.tweens.add({
+              targets: feedbackText,
+              alpha: 0,
+              duration: 1200,
+              delay: 200, // Short delay before fading
+              ease: 'Cubic.easeIn',
+              onComplete: () => {
+                feedbackText.destroy();
+              }
+            });
+          }
+        });
       }
     });
+
+    // REMOVED: Border pulse effect for cleaner feedback
   }
 
   private showWinScreen(): void {
