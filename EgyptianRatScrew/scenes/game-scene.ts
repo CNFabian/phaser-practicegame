@@ -1,5 +1,5 @@
 import * as Phaser from 'phaser';
-import { SCENE_KEYS, ASSET_KEYS, COLORS, CARD_SCALE, CARD_WIDTH, CARD_HEIGHT, GameState, Player, Suit } from '../common';
+import { SCENE_KEYS, ASSET_KEYS, COLORS, CARD_SCALE, CARD_WIDTH, CARD_HEIGHT, GameState, Player, Suit, GameRules, RULE_NAMES } from '../common';
 import { RatScrew } from '../lib/ratscrew';
 import { Card } from '../lib/card';
 
@@ -20,10 +20,24 @@ export class GameScene extends Phaser.Scene {
   private challengeText!: Phaser.GameObjects.Text;
   private pileCollectionText!: Phaser.GameObjects.Text;
 
+  // Active rules display (ONLY NEW ADDITION)
+  private activeRulesContainer!: Phaser.GameObjects.Container;
+  
+  // Easy/Hard mode toggle
+  private isEasyMode: boolean = true;
+  private modeToggleText!: Phaser.GameObjects.Text;
+
   private usingSprites: boolean = false;
 
   constructor() {
     super({ key: SCENE_KEYS.GAME });
+  }
+
+  init(data: { rules?: GameRules }): void {
+    // Store the rules passed from the rules scene
+    if (data?.rules) {
+      console.log('Game started with rules:', data.rules);
+    }
   }
 
   create(): void {
@@ -31,6 +45,7 @@ export class GameScene extends Phaser.Scene {
     this.createBackground();
     this.initializeGame();
     this.createUI();
+    this.createActiveRulesDisplay();
     this.setupInput();
     this.updateDisplay();
   }
@@ -83,8 +98,8 @@ export class GameScene extends Phaser.Scene {
 
     // Player 1 deck area (bottom)
     graphics.strokeRoundedRect(
-      100 - 10,
-      this.cameras.main.height - 150 - (CARD_HEIGHT * CARD_SCALE) / 2 - 10,
+      140,
+      this.cameras.main.height - 200 - (CARD_HEIGHT * CARD_SCALE) / 2 - 10,
       CARD_WIDTH * CARD_SCALE + 20,
       CARD_HEIGHT * CARD_SCALE + 20,
       5
@@ -92,8 +107,8 @@ export class GameScene extends Phaser.Scene {
 
     // Player 2 deck area (top)
     graphics.strokeRoundedRect(
-      this.cameras.main.width - 100 - (CARD_WIDTH * CARD_SCALE) / 2 - 10,
-      150 - (CARD_HEIGHT * CARD_SCALE) / 2 - 10,
+      this.cameras.main.width - 200 - (CARD_WIDTH * CARD_SCALE) / 2 - 10,
+      140,
       CARD_WIDTH * CARD_SCALE + 20,
       CARD_HEIGHT * CARD_SCALE + 20,
       5
@@ -101,7 +116,7 @@ export class GameScene extends Phaser.Scene {
 
     // Bonus pile area (right side)
     graphics.strokeRoundedRect(
-      this.cameras.main.width - 200 - 10,
+      this.cameras.main.width - 400 - 10,
       centerY - (CARD_HEIGHT * CARD_SCALE) / 2 - 10,
       CARD_WIDTH * CARD_SCALE + 20,
       CARD_HEIGHT * CARD_SCALE + 20,
@@ -110,7 +125,84 @@ export class GameScene extends Phaser.Scene {
   }
 
   private initializeGame(): void {
-    this.game_logic = new RatScrew();
+    // Get rules from scene data or use defaults
+    const sceneData = this.scene.settings.data as { rules?: GameRules };
+    const rules = sceneData?.rules;
+    
+    this.game_logic = new RatScrew(rules);
+  }
+
+  private createActiveRulesDisplay(): void {
+    // Container for active rules display in top-left
+    this.activeRulesContainer = this.add.container(75,75);
+
+    // Get active rules from game logic
+    const activeRuleNames = this.game_logic.getActiveRuleNames();
+    const rulesText = activeRuleNames.length > 0 
+      ? activeRuleNames.join('\n') 
+      : 'No rules active';
+
+    // Dynamic sizing based on number of rules
+    const titleHeight = 25;
+    const lineHeight = 18;
+    const padding = 20;
+    const minWidth = 200;
+    
+    // Calculate dimensions
+    const numLines = activeRuleNames.length || 1; // At least 1 line for "No rules active"
+    const textHeight = numLines * lineHeight;
+    const panelHeight = titleHeight + textHeight + padding;
+    
+    // Calculate width based on longest rule name
+    const longestRule = activeRuleNames.reduce((longest, current) => 
+      current.length > longest.length ? current : longest, 
+      'ACTIVE RULES' // Include title in width calculation
+    );
+    const estimatedWidth = Math.max(minWidth, longestRule.length * 8 + 40); // 8px per char + padding
+    const panelWidth = Math.min(estimatedWidth, 300); // Max width of 300px
+
+    // Background panel for rules
+    const panel = this.add.rectangle(
+      panelWidth / 2, 
+      panelHeight / 2, 
+      panelWidth, 
+      panelHeight, 
+      0x000000, 
+      0.7
+    );
+    panel.setStrokeStyle(2, 0xffd700);
+
+    // Title
+    const title = this.add.text(
+      panelWidth / 2,
+      15,
+      'ACTIVE RULES',
+      {
+        fontSize: '16px',
+        color: COLORS.GOLD,
+        fontStyle: 'bold',
+        align: 'center'
+      }
+    ).setOrigin(0.5, 0);
+
+    // Rules display
+    const rulesDisplay = this.add.text(
+      panelWidth / 2,
+      titleHeight + 10,
+      rulesText,
+      {
+        fontSize: '14px',
+        color: COLORS.WHITE,
+        align: 'center',
+        lineSpacing: 2
+      }
+    ).setOrigin(0.5, 0);
+
+    // Add elements to container
+    this.activeRulesContainer.add([panel, title, rulesDisplay]);
+
+    // Make sure it's on top
+    this.activeRulesContainer.setDepth(100);
   }
 
   private createUI(): void {
@@ -119,12 +211,12 @@ export class GameScene extends Phaser.Scene {
 
     // Create card sprites
     this.centerCardSprite = this.createCardDisplay(centerX, centerY, null);
-    this.player1DeckSprite = this.createCardDisplay(100, this.cameras.main.height - 150, null) as any;
-    this.player2DeckSprite = this.createCardDisplay(this.cameras.main.width - 100, 150, null) as any;
+    this.player1DeckSprite = this.createCardDisplay(178, this.cameras.main.height - 200, null) as any;
+    this.player2DeckSprite = this.createCardDisplay(this.cameras.main.width - 200, 188, null) as any;
     
     // Bonus pile (initially hidden)
     this.bonusPileSprite = this.add.rectangle(
-      this.cameras.main.width - 200,
+      this.cameras.main.width - 372,
       centerY,
       CARD_WIDTH * CARD_SCALE,
       CARD_HEIGHT * CARD_SCALE,
@@ -134,13 +226,13 @@ export class GameScene extends Phaser.Scene {
     this.bonusPileSprite.setVisible(false);
 
     // Card count displays
-    this.player1CountText = this.add.text(100, this.cameras.main.height - 50, 'Cards: 26', {
+    this.player1CountText = this.add.text(180, this.cameras.main.height - 125, 'Cards: 26', {
       fontSize: '18px',
       color: COLORS.WHITE,
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    this.player2CountText = this.add.text(this.cameras.main.width - 100, 50, 'Cards: 26', {
+    this.player2CountText = this.add.text(this.cameras.main.width - 200, 115, 'Cards: 26', {
       fontSize: '18px',
       color: COLORS.WHITE,
       fontStyle: 'bold'
@@ -152,9 +244,9 @@ export class GameScene extends Phaser.Scene {
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
-    this.bonusCountText = this.add.text(this.cameras.main.width - 200, centerY + 80, 'Bonus: 0', {
+    this.bonusCountText = this.add.text(this.cameras.main.width - 375, centerY + 80, 'Bonus: 0', {
       fontSize: '16px',
-      color: '#4169E1', // Royal blue color
+      color: COLORS.GOLD, // Royal blue color
       fontStyle: 'bold'
     }).setOrigin(0.5);
 
@@ -193,6 +285,20 @@ export class GameScene extends Phaser.Scene {
       fontSize: '14px',
       color: COLORS.LIGHT_GRAY
     }).setOrigin(0.5);
+
+    // Mode toggle (top-right corner)
+    this.modeToggleText = this.add.text(
+      this.cameras.main.width - 20,
+      20,
+      this.isEasyMode ? 'EASY MODE\n(Press M to toggle)' : 'HARD MODE\n(Press M to toggle)',
+      {
+        fontSize: '14px',
+        color: this.isEasyMode ? COLORS.GREEN : COLORS.RED,
+        fontStyle: 'bold',
+        align: 'right',
+        lineSpacing: 2
+      }
+    ).setOrigin(1.25, -24.2);
   }
 
   private setupInput(): void {
@@ -205,6 +311,9 @@ export class GameScene extends Phaser.Scene {
     // Player 2 controls
     this.input.keyboard.on('keydown-P', () => this.playCard(2));
     this.input.keyboard.on('keydown-L', () => this.attemptSlap(2));
+
+    // Mode toggle
+    this.input.keyboard.on('keydown-M', () => this.toggleMode());
 
     // Menu
     this.input.keyboard.on('keydown-ESC', () => this.returnToMenu());
@@ -282,7 +391,7 @@ export class GameScene extends Phaser.Scene {
     this.bonusPileSprite.setVisible(bonusCount > 0);
 
     // Update status
-    this.statusText.setText(this.game_logic.getGameStatusMessage());
+    this.updateStatusText();
 
     // Update pile collection indicator
     if (this.game_logic.pileAwaitingCollection && this.game_logic.pileWinner) {
@@ -480,5 +589,48 @@ export class GameScene extends Phaser.Scene {
 
   private returnToMenu(): void {
     this.scene.start(SCENE_KEYS.MENU);
+  }
+
+  // NEW: Mode toggle method
+  private toggleMode(): void {
+    this.isEasyMode = !this.isEasyMode;
+    this.modeToggleText.setText(
+      this.isEasyMode ? 'EASY MODE\n(Press M to toggle)' : 'HARD MODE\n(Press M to toggle)'
+    );
+    this.modeToggleText.setColor(this.isEasyMode ? COLORS.GREEN : COLORS.RED);
+    
+    // Update status text immediately when mode changes
+    this.updateStatusText();
+  }
+
+  // NEW: Smart status text updates based on mode
+  private updateStatusText(): void {
+    const gameMessage = this.game_logic.getGameStatusMessage();
+    
+    if (this.isEasyMode) {
+      // Easy mode: Show all messages including rule hints
+      this.statusText.setText(gameMessage);
+    } else {
+      // Hard mode: Only update text if it's NOT a rule hint message
+      if (!this.isRuleHintMessage(gameMessage)) {
+        // Show gameplay messages (pile collection, challenges, game over, etc.)
+        this.statusText.setText(gameMessage);
+      }
+      // If it IS a rule hint message, don't update the text at all
+      // This keeps the previous message displayed without giving hints
+    }
+  }
+
+  // NEW: Check if message is a rule hint
+  private isRuleHintMessage(message: string): boolean {
+    const ruleHintKeywords = [
+      'doubles', 'sandwich', 'tens', 'marriage', 
+      'top-bottom', '4-in-row', 'sequence', 'jokers',
+      'slappable', 'Double', 'Sandwich', 'Marriage'
+    ];
+    
+    return ruleHintKeywords.some(keyword => 
+      message.toLowerCase().includes(keyword.toLowerCase())
+    );
   }
 }

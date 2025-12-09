@@ -1,6 +1,7 @@
 export const SCENE_KEYS = {
     PRELOAD: 'PreloadScene',
     MENU: 'MenuScene',
+    RULES: 'RulesScene',
     GAME: 'GameScene'
 };
 export const ASSET_KEYS = {
@@ -39,6 +40,7 @@ export var Rank;
 export var GameState;
 (function (GameState) {
     GameState["MENU"] = "MENU";
+    GameState["RULES"] = "RULES";
     GameState["PLAYING"] = "PLAYING";
     GameState["CHALLENGE"] = "CHALLENGE";
     GameState["GAME_OVER"] = "GAME_OVER";
@@ -100,6 +102,21 @@ export const SUIT_DISPLAY = {
     [Suit.HEARTS]: '♥',
     [Suit.SPADES]: '♠'
 };
+export const RANK_VALUES = {
+    [Rank.ACE]: 1,
+    [Rank.TWO]: 2,
+    [Rank.THREE]: 3,
+    [Rank.FOUR]: 4,
+    [Rank.FIVE]: 5,
+    [Rank.SIX]: 6,
+    [Rank.SEVEN]: 7,
+    [Rank.EIGHT]: 8,
+    [Rank.NINE]: 9,
+    [Rank.TEN]: 10,
+    [Rank.JACK]: 11,
+    [Rank.QUEEN]: 12,
+    [Rank.KING]: 13
+};
 export const RED_SUITS = [Suit.DIAMONDS, Suit.HEARTS];
 export const BLACK_SUITS = [Suit.CLUBS, Suit.SPADES];
 export const COLORS = {
@@ -108,5 +125,39 @@ export const COLORS = {
     WHITE: '#ffffff',
     BLACK: '#000000',
     RED: '#ff0000',
-    GREEN: '#00ff00'
+    GREEN: '#00ff00',
+    ORANGE: '#ff8c00',
+    LIGHT_GRAY: '#d3d3d3',
+    BLUE: '#4169E1',
+    YELLOW: '#FFFF00'
+};
+export const RULE_DESCRIPTIONS = {
+    doubles: 'Two cards of same rank in a row (5-5)',
+    sandwich: 'Same rank with one card between (5-7-5)',
+    tens: 'Two cards that add up to 10 (3-7, 4-6)',
+    marriage: 'King and Queen together (K-Q or Q-K)',
+    topBottom: 'Top and bottom cards of pile match',
+    fourInRow: 'Four consecutive ranks (3-4-5-6)',
+    sequence: 'Any 3+ card sequence (5-6-7)',
+    jokers: 'Include jokers in deck (always slappable)'
+};
+export const RULE_NAMES = {
+    doubles: 'Doubles',
+    sandwich: 'Sandwich',
+    tens: 'Adds to 10',
+    marriage: 'Marriage',
+    topBottom: 'Top-Bottom',
+    fourInRow: '4-in-a-Row',
+    sequence: 'Sequence',
+    jokers: 'Jokers'
+};
+export const DEFAULT_RULES = {
+    doubles: true,
+    sandwich: true,
+    tens: false,
+    marriage: false,
+    topBottom: false,
+    fourInRow: false,
+    sequence: false,
+    jokers: false
 };

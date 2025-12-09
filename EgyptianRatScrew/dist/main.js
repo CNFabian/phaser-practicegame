@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS } from './common';
 import { PreloadScene } from './scenes/preload-scene';
 import { MenuScene } from './scenes/menu-scene';
+import { RulesScene } from './scenes/rules-scene';
 import { GameScene } from './scenes/game-scene';
 const config = {
     type: Phaser.AUTO,
@@ -9,7 +10,7 @@ const config = {
     height: GAME_HEIGHT,
     parent: 'game-container',
     backgroundColor: COLORS.BACKGROUND,
-    scene: [PreloadScene, MenuScene, GameScene],
+    scene: [PreloadScene, MenuScene, RulesScene, GameScene],
     physics: {
         default: 'arcade',
         arcade: {
@@ -56,7 +57,7 @@ function scaleCanvas(canvas, container) {
 }
 function initializeGame() {
     try {
-        console.log('Initializing Egyptian Ratscrew game...');
+        console.log('Initializing Egyptian Ratscrew game with rules system...');
         console.log('Game dimensions:', GAME_WIDTH, 'x', GAME_HEIGHT);
         const loadingElement = document.querySelector('.loading');
         if (loadingElement) {

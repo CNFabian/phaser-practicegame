@@ -1,76 +1,35 @@
 import * as Phaser from 'phaser';
-import { SCENE_KEYS, COLORS } from '../common';
+import { SCENE_KEYS } from '../common';
 export class PreloadScene extends Phaser.Scene {
     constructor() {
         super({ key: SCENE_KEYS.PRELOAD });
     }
     preload() {
-        this.createLoadingScreen();
-        this.setupLoadingEvents();
-        this.loadAssets();
-    }
-    createLoadingScreen() {
-        const centerX = this.cameras.main.centerX;
-        const centerY = this.cameras.main.centerY;
-        this.add.text(centerX, centerY - 100, 'EGYPTIAN RATSCREW', {
-            fontSize: '48px',
-            color: COLORS.GOLD,
-            fontStyle: 'bold'
+        console.log('PreloadScene: Loading assets...');
+        const width = this.cameras.main.width;
+        const height = this.cameras.main.height;
+        const progressBar = this.add.graphics();
+        const progressBox = this.add.graphics();
+        progressBox.fillStyle(0x222222, 0.8);
+        progressBox.fillRect(width / 2 - 160, height / 2 - 30, 320, 50);
+        const loadingText = this.add.text(width / 2, height / 2 - 50, 'Loading...', {
+            fontSize: '20px',
+            color: '#ffffff'
         }).setOrigin(0.5);
-        this.loadingText = this.add.text(centerX, centerY, 'Loading assets...', {
-            fontSize: '24px',
-            color: COLORS.WHITE
-        }).setOrigin(0.5);
-        this.progressBox = this.add.graphics();
-        this.progressBox.fillStyle(0x222222);
-        this.progressBox.fillRect(centerX - 160, centerY + 50, 320, 30);
-        this.progressBar = this.add.graphics();
-    }
-    setupLoadingEvents() {
         this.load.on('progress', (value) => {
-            this.updateProgressBar(value);
-        });
-        this.load.on('fileprogress', (file) => {
-            this.loadingText.setText(`Loading: ${file.key}`);
+            progressBar.clear();
+            progressBar.fillStyle(0xffd700, 1);
+            progressBar.fillRect(width / 2 - 150, height / 2 - 20, 300 * value, 30);
         });
         this.load.on('complete', () => {
-            this.loadingText.setText('Loading complete!');
-            this.time.delayedCall(500, () => {
-                this.scene.start(SCENE_KEYS.MENU);
-            });
+            progressBar.destroy();
+            progressBox.destroy();
+            loadingText.destroy();
+            console.log('PreloadScene: Assets loaded successfully');
         });
-        this.load.on('loaderror', (file) => {
-            console.warn(`Failed to load: ${file.key} from ${file.src}`);
-            this.loadingText.setText(`Warning: ${file.key} failed to load`);
-            this.loadingText.setColor('#ff0000');
-        });
-    }
-    updateProgressBar(value) {
-        const centerX = this.cameras.main.centerX;
-        const centerY = this.cameras.main.centerY;
-        this.progressBar.clear();
-        this.progressBar.fillStyle(0xffd700);
-        this.progressBar.fillRect(centerX - 158, centerY + 52, 316 * value, 26);
-    }
-    loadAssets() {
-        let hasAssets = false;
-        try {
-        }
-        catch (error) {
-            console.warn('Card spritesheet not found, will use fallback rendering');
-        }
-        if (this.load.totalToLoad === 0) {
-            console.log('No assets to load, proceeding to menu');
-            this.loadingText.setText('No assets to load - proceeding...');
-            this.time.delayedCall(1000, () => {
-                this.scene.start(SCENE_KEYS.MENU);
-            });
-        }
-        else {
-            this.load.start();
-        }
     }
     create() {
-        console.log('PreloadScene create method called');
+        console.log('PreloadScene: Starting menu...');
+        this.scene.start(SCENE_KEYS.MENU);
     }
 }
