@@ -342,7 +342,6 @@ export class GameScene extends Phaser.Scene {
       const cardBg = this.add.rectangle(0, 0, CARD_WIDTH * CARD_SCALE, CARD_HEIGHT * CARD_SCALE, 0xffffff);
       cardBg.setStrokeStyle(2, 0x000000);
       
-      // FIX: Use proper Suit enum comparison instead of string literals
       const suitColor = (card.suit === Suit.HEARTS || card.suit === Suit.DIAMONDS) ? 
         0xff0000 : 0x000000;
       
@@ -472,11 +471,7 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  // IMPROVED: Clean text-only slap feedback animation
   private showSlapFeedback(player: Player, success: boolean): void {
-    // REMOVED: Flash overlay - keeping only text feedback
-    
-    // ENHANCED FEEDBACK TEXT with text-only shake animation
     const feedbackText = this.add.text(
       this.cameras.main.centerX,
       this.cameras.main.centerY - 50,
@@ -505,7 +500,6 @@ export class GameScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
       yoyo: true,
       repeat: 11 // Creates 6 complete shake cycles
-      // REMOVED: onComplete that was forcing text back to original position
     });
 
     // Pop-in effect (scale animation)
@@ -524,7 +518,6 @@ export class GameScene extends Phaser.Scene {
           duration: 200,
           ease: 'Cubic.easeOut',
           onComplete: () => {
-            // FIXED: Stop the shake animation when scaling/movement is complete
             // Kill all tweens on the feedbackText object
             this.tweens.killTweensOf(feedbackText);
             
@@ -543,55 +536,159 @@ export class GameScene extends Phaser.Scene {
         });
       }
     });
-
-    // REMOVED: Border pulse effect for cleaner feedback
   }
 
   private showWinScreen(): void {
-    // Semi-transparent overlay
-    const overlay = this.add.rectangle(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY,
-      this.cameras.main.width,
-      this.cameras.main.height,
-      0x000000,
-      0.8
-    );
+  // Create a container for all win screen elements
+  const winContainer = this.add.container(0, 0);
 
-    // Win text
-    const winText = this.add.text(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY - 50,
-      `PLAYER ${this.game_logic.winner} WINS!`,
-      {
-        fontSize: '48px',
-        color: COLORS.GOLD,
-        fontStyle: 'bold'
-      }
-    ).setOrigin(0.5);
-
-    // Continue instruction
-    const continueText = this.add.text(
-      this.cameras.main.centerX,
-      this.cameras.main.centerY + 50,
-      'Press SPACE to play again or ESC for menu',
-      {
-        fontSize: '20px',
-        color: COLORS.WHITE
-      }
-    ).setOrigin(0.5);
-
-    // Handle restart
-    this.input.keyboard?.on('keydown-SPACE', () => {
-      this.scene.restart();
-    });
+  if (this.centerCardSprite) {
+    this.centerCardSprite.setVisible(false);
   }
 
-  private returnToMenu(): void {
+  // Set high depth for win screen  
+  winContainer.setDepth(1000);
+  
+  // Semi-transparent overlay
+  const overlay = this.add.rectangle(
+    this.cameras.main.centerX,
+    this.cameras.main.centerY,
+    this.cameras.main.width,
+    this.cameras.main.height,
+    0x000000,
+    0.8
+  );
+
+  // Win panel background
+  const panelBg = this.add.rectangle(
+    this.cameras.main.centerX,
+    this.cameras.main.centerY,
+    600,
+    400,
+    0x1a1a1a
+  );
+  panelBg.setStrokeStyle(4, 0xffd700);
+
+  // Trophy/crown effect
+  const crown = this.add.text(
+    this.cameras.main.centerX,
+    this.cameras.main.centerY - 120,
+    '👑',
+    { fontSize: '64px' }
+  ).setOrigin(0.5);
+
+  // Win text
+  const winText = this.add.text(
+    this.cameras.main.centerX,
+    this.cameras.main.centerY - 50,
+    `PLAYER ${this.game_logic.winner} WINS!`,
+    {
+      fontSize: '48px',
+      color: COLORS.GOLD,
+      fontStyle: 'bold',
+      stroke: COLORS.BLACK,
+      strokeThickness: 3
+    }
+  ).setOrigin(0.5);
+
+  // Victory reason
+  const reasonText = this.add.text(
+    this.cameras.main.centerX,
+    this.cameras.main.centerY - 10,
+    'Opponent ran out of cards!',
+    {
+      fontSize: '20px',
+      color: COLORS.WHITE,
+      fontStyle: 'italic'
+    }
+  ).setOrigin(0.5);
+
+  // Final scores
+  const scoresText = this.add.text(
+    this.cameras.main.centerX,
+    this.cameras.main.centerY + 30,
+    `Final Scores - P1: ${this.game_logic.player1Count} | P2: ${this.game_logic.player2Count}`,
+    {
+      fontSize: '18px',
+      color: COLORS.LIGHT_GRAY
+    }
+  ).setOrigin(0.5);
+
+  // Controls
+  const controlsText = this.add.text(
+    this.cameras.main.centerX,
+    this.cameras.main.centerY + 80,
+    'Press SPACE to play again or ESC for menu',
+    {
+      fontSize: '20px',
+      color: COLORS.WHITE
+    }
+  ).setOrigin(0.5);
+
+  // Add to container
+  winContainer.add([overlay, panelBg, crown, winText, reasonText, scoresText, controlsText]);
+
+  // Animations
+  winContainer.setAlpha(0);
+  crown.setScale(0);
+  winText.setScale(0);
+  
+  this.tweens.add({
+    targets: winContainer,
+    alpha: 1,
+    duration: 500,
+    ease: 'Power2'
+  });
+
+  this.tweens.add({
+    targets: crown,
+    scale: 1,
+    duration: 400,
+    delay: 300,
+    ease: 'Bounce.easeOut'
+  });
+
+  this.tweens.add({
+    targets: winText,
+    scale: 1,
+    duration: 400,
+    delay: 500,
+    ease: 'Back.easeOut'
+  });
+
+  this.tweens.add({
+    targets: controlsText,
+    alpha: 0.5,
+    duration: 1000,
+    yoyo: true,
+    repeat: -1,
+    delay: 1000
+  });
+
+  // Input handlers
+  const spaceHandler = () => {
+    this.input.keyboard?.off('keydown-SPACE', spaceHandler);
+    this.input.keyboard?.off('keydown-ESC', escHandler);
+    this.scene.restart();
+  };
+
+  const escHandler = () => {
+    this.input.keyboard?.off('keydown-SPACE', spaceHandler);
+    this.input.keyboard?.off('keydown-ESC', escHandler);
+    this.returnToMenu();
+  };
+
+  this.input.keyboard?.once('keydown-SPACE', spaceHandler);
+  this.input.keyboard?.once('keydown-ESC', escHandler);
+}
+
+ private returnToMenu(): void {
+  this.cameras.main.fadeOut(500, 0, 0, 0);
+  this.cameras.main.once('camerafadeoutcomplete', () => {
     this.scene.start(SCENE_KEYS.MENU);
-  }
+  });
+}
 
-  // NEW: Mode toggle method
   private toggleMode(): void {
     this.isEasyMode = !this.isEasyMode;
     this.modeToggleText.setText(
@@ -603,7 +700,6 @@ export class GameScene extends Phaser.Scene {
     this.updateStatusText();
   }
 
-  // NEW: Smart status text updates based on mode
   private updateStatusText(): void {
     const gameMessage = this.game_logic.getGameStatusMessage();
     

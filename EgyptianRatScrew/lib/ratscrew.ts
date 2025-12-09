@@ -34,10 +34,10 @@ export class RatScrew {
   }
   get events(): readonly GameEvent[] { return this._events; }
   get winner(): Player | null {
-    if (this._player1Deck.length === 52) return 1;
-    if (this._player2Deck.length === 52) return 2;
-    return null;
-  }
+  if (this._player1Deck.length === 0) return 2;
+  if (this._player2Deck.length === 0) return 1;
+  return null;
+}
   get pileAwaitingCollection(): boolean { return this._pileAwaitingCollection; }
   get pileWinner(): Player | null { return this._pileWinner; }
   get rules(): GameRules { return { ...this._rules }; }
@@ -102,6 +102,9 @@ export class RatScrew {
           message: `Challenge paused! ${slappableCondition} detected - race to slap!`
         });
       }
+
+      this.checkGameOver();
+
       
       return true;
     }
@@ -168,6 +171,7 @@ export class RatScrew {
           message: `Player ${player} slapped successfully! (${condition}) - Slap again to collect!`
         });
       }
+      this.checkGameOver();
       
       return true;
     } else {
@@ -387,7 +391,7 @@ export class RatScrew {
       this.addEvent({
         type: 'game_over',
         player: winner,
-        message: `Game Over! Player ${winner} wins with all 52 cards!`
+        message: `Game Over! Player ${winner} wins - opponent is out of cards!`
       });
     }
   }
